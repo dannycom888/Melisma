@@ -49,6 +49,8 @@ import com.melisma.app.ui.background.ArtworkColors
 import com.melisma.app.ui.background.CanvasVideoBackground
 import com.melisma.app.ui.components.rememberPlayheadMs
 import com.melisma.app.ui.lyrics.LyricsView
+import androidx.compose.ui.res.stringResource
+import com.melisma.app.R
 
 /**
  * The lyrics screen, drawn on the car's own surface.
@@ -233,7 +235,7 @@ private fun CarCinema(
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = track.artist.ifBlank { "Unknown artist" },
+                text = track.artist.ifBlank { stringResource(R.string.mediapanel_unknown_artist) },
                 color = Color.White.copy(alpha = 0.66f),
                 fontSize = 15.sp,
                 maxLines = 1,
@@ -303,16 +305,17 @@ private fun CarStatus(text: String, accent: Color) {
  * The templated screen says the same things at more length; this is the version for a surface that is
  * mostly background, where a paragraph would be unreadable anyway.
  */
+@Composable
 private fun statusText(glance: CarGlance): String = when (glance) {
-    CarGlance.Silent -> "Nothing playing"
-    CarGlance.Looking -> "Looking for the words…"
-    CarGlance.None -> "No lyrics for this one"
-    CarGlance.Untimed -> "These lyrics have no timings"
-    CarGlance.Offline -> "No connection"
-    CarGlance.NoPermission -> "Notification access is off — grant it on your phone"
-    is CarGlance.Failed -> "Something went wrong"
+    CarGlance.Silent -> stringResource(R.string.player_nothing_playing)
+    CarGlance.Looking -> stringResource(R.string.car_looking_for_the_words)
+    CarGlance.None -> stringResource(R.string.car_no_lyrics_for_this_one)
+    CarGlance.Untimed -> stringResource(R.string.car_these_lyrics_have_no_timings)
+    CarGlance.Offline -> stringResource(R.string.car_no_connection)
+    CarGlance.NoPermission -> stringResource(R.string.car_notification_access_is_off_grant_it_on_your_phon)
+    is CarGlance.Failed -> stringResource(R.string.car_something_went_wrong)
     // Reached only if the caller drew this instead of the lyrics, which it does not.
-    is CarGlance.Now -> "Looking for the words…"
+    is CarGlance.Now -> stringResource(R.string.car_looking_for_the_words)
 }
 
 /** Turns the host's visible rectangle into padding, in the density the surface is drawn at. */

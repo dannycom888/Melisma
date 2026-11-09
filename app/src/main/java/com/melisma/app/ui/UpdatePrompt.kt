@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.melisma.app.update.Updater
+import androidx.compose.ui.res.stringResource
+import com.melisma.app.R
 
 /**
  * "There is a new version" — said once, and answerable.
@@ -64,18 +66,17 @@ fun UpdatePrompt(
                 .padding(20.dp),
         ) {
             Text(
-                "Version ${release.versionName} is out",
+                stringResource(R.string.update_version_is_out, release.versionName),
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                "You have $currentVersion" +
-                    if (release.apkSizeBytes > 0) {
-                        " · %.1f MB to download".format(release.apkSizeBytes / 1_048_576f)
+                stringResource(R.string.update_you_have, currentVersion, if (release.apkSizeBytes > 0) {
+                        stringResource(R.string.update_1f_mb_to_download, release.apkSizeBytes / 1_048_576f)
                     } else {
                         ""
-                    },
+                    }),
                 color = Color.White.copy(alpha = 0.55f),
                 fontSize = 13.sp,
                 modifier = Modifier.padding(top = 2.dp),
@@ -99,9 +100,9 @@ fun UpdatePrompt(
                 downloading != null -> {
                     Text(
                         if (downloading.fraction < 0f) {
-                            "Downloading…"
+                            stringResource(R.string.update_downloading)
                         } else {
-                            "Downloading — ${(downloading.fraction * 100).toInt()}%"
+                            stringResource(R.string.settings_downloading, (downloading.fraction * 100).toInt())
                         },
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 13.sp,
@@ -123,22 +124,20 @@ fun UpdatePrompt(
                         // before its confirmation appears when it asks for one, and after that has
                         // been dismissed. So it says something true of all of them.
                         Text(
-                            "Installing. Melisma closes while Android updates it — open it again " +
-                                "afterwards. If Android asked you to confirm and you closed that, " +
-                                "press Install again; it will not download a second time.",
+                            stringResource(R.string.update_installing_melisma_closes_while_android_updates),
                             color = Color.White.copy(alpha = 0.7f),
                             fontSize = 13.sp,
                             modifier = Modifier.padding(bottom = 14.dp),
                         )
                     }
-                    DialogButton("Install", filled = true, onClick = onInstall)
+                    DialogButton(stringResource(R.string.update_install), filled = true, onClick = onInstall)
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.weight(1f)) {
-                            DialogButton("Not now", filled = false, onClick = onDismiss)
+                            DialogButton(stringResource(R.string.update_not_now), filled = false, onClick = onDismiss)
                         }
                         Box(Modifier.weight(1f)) {
-                            DialogButton("Skip this one", filled = false, onClick = onSkip)
+                            DialogButton(stringResource(R.string.update_skip_this_one), filled = false, onClick = onSkip)
                         }
                     }
                 }

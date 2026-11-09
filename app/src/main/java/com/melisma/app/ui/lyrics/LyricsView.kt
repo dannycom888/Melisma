@@ -56,6 +56,8 @@ import com.melisma.app.ui.components.AppIcons
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
+import androidx.compose.ui.res.stringResource
+import com.melisma.app.R
 
 /** How long to keep drawing after the playhead stops, so the springs can come to rest. */
 private const val SPRING_SETTLE_NANOS = 900_000_000L
@@ -150,10 +152,14 @@ fun LyricsView(
             )
         }
 
+        val providerAttribution = document.providerName.takeIf { it.isNotBlank() }
+            ?.let { stringResource(R.string.repo_lyrics_from, it) }
+
         val layout = remember(
             document, metrics, contentWidthPx, useRomanization, showTranslation,
             settings.showOriginalUnderRomanization,
             settings.duetLinePadding, showCredits, furiganaHiragana,
+            providerAttribution,
         ) {
             LyricsLayoutBuilder.build(
                 document = document,
@@ -165,6 +171,7 @@ fun LyricsView(
                 duetPadding = settings.duetLinePadding,
                 showCredits = showCredits,
                 furiganaHiragana = furiganaHiragana,
+                providerAttribution = providerAttribution,
             )
         }
 
@@ -368,6 +375,7 @@ private fun BoxScope.NowPlayingPill(direction: Int, onClick: () -> Unit) {
     val side = remember { IntArray(1) { 1 } }
     if (direction != 0) side[0] = direction
     val above = side[0] < 0
+    val scrollLabel = stringResource(R.string.lyricsview_scroll_to_the_line_that_s_playing)
 
     AnimatedVisibility(
         visible = direction != 0,
@@ -383,7 +391,7 @@ private fun BoxScope.NowPlayingPill(direction: Int, onClick: () -> Unit) {
                 // Dark rather than light: it sits over lyrics that are all lit.
                 .background(Color.Black.copy(alpha = 0.7f))
                 .clickable(onClick = onClick)
-                .semantics { contentDescription = "Scroll to the line that's playing" }
+                .semantics { contentDescription = scrollLabel }
                 .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -394,7 +402,7 @@ private fun BoxScope.NowPlayingPill(direction: Int, onClick: () -> Unit) {
                 modifier = Modifier.size(20.dp).rotate(if (above) -90f else 90f),
             )
             Spacer(Modifier.width(4.dp))
-            Text("Now playing", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            Text(stringResource(R.string.lyricsview_now_playing), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         }
     }
 }

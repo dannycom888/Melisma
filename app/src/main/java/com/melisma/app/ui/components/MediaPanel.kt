@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import com.melisma.app.media.PlaybackPosition
 import com.melisma.app.media.Transport
 import com.melisma.app.media.TrackInfo
+import androidx.compose.ui.res.stringResource
+import com.melisma.app.R
 
 /**
  * The album-art half of Cinema view: big cover, track details, scrubber, transport, and
@@ -128,7 +130,7 @@ fun MediaPanel(
                     if (artwork != null) {
                         Image(
                             bitmap = artwork.asImageBitmap(),
-                            contentDescription = "Album artwork",
+                            contentDescription = stringResource(R.string.mediapanel_album_artwork),
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -158,7 +160,7 @@ fun MediaPanel(
                     .titleMarquee(playback.isPlaying),
             )
             Text(
-                text = track.artist.ifBlank { "Unknown artist" },
+                text = track.artist.ifBlank { stringResource(R.string.mediapanel_unknown_artist) },
                 color = Color.White.copy(alpha = 0.66f),
                 fontSize = 14.sp,
                 maxLines = 1,
@@ -204,7 +206,7 @@ fun MediaPanel(
                     IconButton(onClick = onPrevious, enabled = transport.skipPrevious) {
                         Icon(
                             AppIcons.SkipPrevious,
-                            contentDescription = "Previous track",
+                            contentDescription = stringResource(R.string.mediapanel_previous_track),
                             tint = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier.size(26.dp),
                         )
@@ -217,7 +219,7 @@ fun MediaPanel(
                     ) {
                         Icon(
                             if (playback.isPlaying) AppIcons.Pause else AppIcons.PlayArrow,
-                            contentDescription = if (playback.isPlaying) "Pause" else "Play",
+                            contentDescription = if (playback.isPlaying) stringResource(R.string.mediapanel_pause) else stringResource(R.string.mediapanel_play),
                             tint = Color.White,
                             modifier = Modifier.size(34.dp),
                         )
@@ -226,7 +228,7 @@ fun MediaPanel(
                     IconButton(onClick = onNext, enabled = transport.skipNext) {
                         Icon(
                             AppIcons.SkipNext,
-                            contentDescription = "Next track",
+                            contentDescription = stringResource(R.string.mediapanel_next_track),
                             tint = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier.size(26.dp),
                         )
@@ -240,7 +242,7 @@ fun MediaPanel(
 
             if (roomForOpen) {
                 Text(
-                    text = "Open player",
+                    text = stringResource(R.string.mediapanel_open_player),
                     color = accent,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
@@ -321,7 +323,7 @@ fun VolumeRow(volume: Float, accent: Color, onVolumeChange: (Float) -> Unit) {
     ) {
         Icon(
             if (volume <= 0.001f) AppIcons.VolumeMute else AppIcons.VolumeUp,
-            contentDescription = "Volume",
+            contentDescription = stringResource(R.string.mediapanel_volume),
             tint = Color.White.copy(alpha = 0.55f),
             modifier = Modifier.size(17.dp),
         )

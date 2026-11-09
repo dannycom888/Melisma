@@ -2,18 +2,20 @@ package com.melisma.app.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.annotation.StringRes
+import com.melisma.app.R
 import com.melisma.app.lyrics.provider.ProviderCredentials
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** Spicy Lyrics' "Static Background" choice. */
-enum class BackgroundStyle(val label: String) {
+enum class BackgroundStyle(@param:StringRes val labelRes: Int) {
     /** Album art, blurred and slowly warped: Spicy Lyrics' animated background, ported. */
-    ANIMATED("Living"),
+    ANIMATED(R.string.setting_living),
 
     /** The drifting colour field Living was before the port. Lighter on the GPU. */
-    LIVING_CLASSIC("Living (classic)"),
+    LIVING_CLASSIC(R.string.setting_living_classic),
 
     /**
      * Living normally, still where the battery settings ask for it.
@@ -21,10 +23,10 @@ enum class BackgroundStyle(val label: String) {
      * Which is now the floating window and battery saver, and both are switches of their own — so
      * this and [ANIMATED] differ only in that this one has no argument with them.
      */
-    AUTO("Auto"),
+    AUTO(R.string.setting_auto),
 
     /** Album art, still, blurred by [Settings.backgroundBlur]. Their "Cover Art". */
-    COVER_ART("Cover art"),
+    COVER_ART(R.string.setting_cover_art),
 
     /**
      * The artist's image instead of the album's. Their "Artist Header".
@@ -32,20 +34,20 @@ enum class BackgroundStyle(val label: String) {
      * Only Spotify knows what an artist looks like, so this needs the `sp_dc` cookie; it
      * falls back to the cover art without one.
      */
-    ARTIST_HEADER("Artist"),
+    ARTIST_HEADER(R.string.setting_artist),
 
     /** Flat colour pulled from the artwork. Their "Color". */
-    COLOR("Colour"),
+    COLOR(R.string.setting_colour),
 
     /** Pure black — best on OLED, and for reading. */
-    BLACK("Black"),
+    BLACK(R.string.setting_black),
 }
 
 /** Spotify's looping Canvas video, used as the background when a track has one. */
-enum class CanvasMode(val label: String) {
-    OFF("Off"),
-    FULL("Full"),
-    BLURRED("Blurred"),
+enum class CanvasMode(@param:StringRes val labelRes: Int) {
+    OFF(R.string.setting_off),
+    FULL(R.string.setting_full),
+    BLURRED(R.string.setting_blurred),
 }
 
 /**
@@ -53,15 +55,15 @@ enum class CanvasMode(val label: String) {
  *
  * Spicy Lyrics exposes the same choice as "Text Animation Style".
  */
-enum class TextAnimationStyle(val label: String, val description: String) {
+enum class TextAnimationStyle(@param:StringRes val labelRes: Int, @param:StringRes val descriptionRes: Int) {
     /** Recomputed from the playhead every frame: always exact. */
-    CALCULATE("Calculate", "Follows the playhead exactly, every frame"),
+    CALCULATE(R.string.setting_calculate, R.string.setting_follows_the_playhead_exactly_every_frame),
 
     /**
      * Run at a constant rate from the moment the syllable starts. Smoother when the
      * player reports its position coarsely, but drifts slightly across a seek.
      */
-    ANIMATE("Animate", "Runs at a steady rate — smoother, slightly less exact"),
+    ANIMATE(R.string.setting_animate, R.string.setting_runs_at_a_steady_rate_smoother_slightly_less_exa),
 }
 
 /**
@@ -70,26 +72,26 @@ enum class TextAnimationStyle(val label: String, val description: String) {
  * Hiragana is the convention in print and in songbooks; katakana is what a morphological
  * analyser reports natively and what some karaoke subtitles use, so both are offered.
  */
-enum class FuriganaMode(val label: String) {
-    OFF("Off"),
-    HIRAGANA("Hiragana"),
-    KATAKANA("Katakana"),
+enum class FuriganaMode(@param:StringRes val labelRes: Int) {
+    OFF(R.string.setting_off),
+    HIRAGANA(R.string.setting_hiragana),
+    KATAKANA(R.string.setting_katakana),
 }
 
 /** How Taiwanese Hokkien is spelled in Latin letters. */
-enum class HokkienSpelling(val label: String) {
+enum class HokkienSpelling(@param:StringRes val labelRes: Int) {
     /** The Ministry of Education's system, taught in Taiwanese schools since 2006. */
-    TAILO("Tâi-lô"),
+    TAILO(R.string.setting_t_i_l),
 
     /** Pe̍h-ōe-jī, the older church romanization, still what most written Taigi uses. */
-    POJ("POJ"),
+    POJ(R.string.setting_poj),
 }
 
 /** Which language a song's Chinese characters are read in. */
-enum class ChineseReading(val label: String) {
-    AUTO("Auto"),
-    MANDARIN("Mandarin"),
-    HOKKIEN("Hokkien"),
+enum class ChineseReading(@param:StringRes val labelRes: Int) {
+    AUTO(R.string.setting_auto),
+    MANDARIN(R.string.setting_mandarin),
+    HOKKIEN(R.string.setting_hokkien),
 }
 
 /**
@@ -101,14 +103,14 @@ enum class ChineseReading(val label: String) {
  * machine output in the language *you* chose, and costs a one-off ~30 MB model download
  * per language pair.
  */
-enum class TranslationSource(val label: String) {
-    OFF("Off"),
+enum class TranslationSource(@param:StringRes val labelRes: Int) {
+    OFF(R.string.setting_off),
 
     /** Only what came with the lyrics. Never downloads anything, never guesses. */
-    PROVIDER("From the source"),
+    PROVIDER(R.string.setting_from_the_source),
 
     /** ML Kit, into [Settings.translationTarget], ignoring what the source supplied. */
-    DEVICE("On this device"),
+    DEVICE(R.string.setting_on_this_device),
 }
 
 /**
@@ -117,15 +119,15 @@ enum class TranslationSource(val label: String) {
  * A media session's thumbnail is often 300px or less, which a full-screen background shows
  * up for what it is. Both alternatives here are keyless and public.
  */
-enum class ArtworkSource(val label: String) {
+enum class ArtworkSource(@param:StringRes val labelRes: Int) {
     /** Only what the player publishes. No extra requests. */
-    PLAYER("Player only"),
+    PLAYER(R.string.setting_player_only),
 
     /** Apple's public search. Fast, wide, and returns squares up to 1000px. */
-    ITUNES("iTunes"),
+    ITUNES(R.string.setting_itunes),
 
     /** MusicBrainz then the Cover Art Archive. Slower, community-run, no rate key. */
-    COVER_ART_ARCHIVE("Cover Art Archive"),
+    COVER_ART_ARCHIVE(R.string.setting_cover_art_archive),
 }
 
 /**
@@ -137,9 +139,9 @@ enum class ArtworkSource(val label: String) {
  * the server itself — if it cannot answer, nothing else will, which is the only way to find
  * out what it is actually missing.
  */
-enum class CacheServerMode(val label: String) {
-    PARALLEL("Alongside the others"),
-    ONLY("Only the cache server"),
+enum class CacheServerMode(@param:StringRes val labelRes: Int) {
+    PARALLEL(R.string.setting_alongside_the_others),
+    ONLY(R.string.setting_only_the_cache_server),
 }
 
 /**
@@ -149,36 +151,51 @@ enum class CacheServerMode(val label: String) {
  * one setting. [ONLY] is for testing the server's extras the way [CacheServerMode.ONLY] tests its
  * lyrics.
  */
-enum class ExtrasServerMode(val label: String) {
-    FALLBACK("After the phone's own"),
-    ONLY("Only the cache server"),
+enum class ExtrasServerMode(@param:StringRes val labelRes: Int) {
+    FALLBACK(R.string.setting_after_the_phone_s_own),
+    ONLY(R.string.setting_only_the_cache_server),
 }
 
 /** Which half of the screen the album art and track info occupy in Cinema view. */
-enum class MediaPanelSide(val label: String) {
+enum class MediaPanelSide(@param:StringRes val labelRes: Int) {
     /** Left in landscape, top in portrait. */
-    START("Left / Top"),
+    START(R.string.setting_left_top),
 
     /** Right in landscape, bottom in portrait. */
-    END("Right / Bottom"),
+    END(R.string.setting_right_bottom),
 }
 
 /** Shape of the floating window. */
-enum class PopupShape(val label: String, val widthRatio: Int, val heightRatio: Int) {
+enum class PopupShape(@param:StringRes val labelRes: Int, val widthRatio: Int, val heightRatio: Int) {
     /** Wide, like the YouTube miniplayer. */
-    LANDSCAPE("Wide (16:9)", 16, 9),
+    LANDSCAPE(R.string.setting_wide_16_9, 16, 9),
 
     /** Tall, like a mini app. */
-    PORTRAIT("Tall (9:16)", 9, 16),
+    PORTRAIT(R.string.setting_tall_9_16, 9, 16),
 
     /** Square — fits two or three lyric lines with the art. */
-    SQUARE("Square", 1, 1),
+    SQUARE(R.string.setting_square, 1, 1),
 }
 
 /** The main layout: lyrics alone, or lyrics beside the album art. */
-enum class ViewMode(val label: String) {
-    LYRICS("Lyrics"),
-    CINEMA("Cinema"),
+enum class ViewMode(@param:StringRes val labelRes: Int) {
+    LYRICS(R.string.player_lyrics),
+    CINEMA(R.string.setting_cinema),
+}
+
+/**
+ * The language of the app's own menus.
+ *
+ * Distinct from the lyrics language settings below (romanization, furigana,
+ * translation): those decide what language a song's words are shown in, this
+ * decides what language the app itself speaks. SYSTEM follows the phone.
+ * There is no per-app language setting in Android 12 (that arrived in
+ * Android 13), so this is the switch the user asked for.
+ */
+enum class AppLanguage(@param:StringRes val labelRes: Int) {
+    SYSTEM(R.string.app_language_system),
+    CHINESE(R.string.app_language_chinese),
+    ENGLISH(R.string.app_language_english),
 }
 
 /**
@@ -187,12 +204,12 @@ enum class ViewMode(val label: String) {
  * Spicy Lyrics ships its own display font; that is Spikerko's asset and is not bundled
  * here, so this picks between the families already on the device.
  */
-enum class LyricsFont(val familyName: String?, val label: String) {
-    SYSTEM(null, "System"),
-    SANS("sans-serif", "Sans"),
-    CONDENSED("sans-serif-condensed", "Condensed"),
-    SERIF("serif", "Serif"),
-    MONO("monospace", "Mono"),
+enum class LyricsFont(val familyName: String?, @param:StringRes val labelRes: Int) {
+    SYSTEM(null, R.string.setting_system),
+    SANS("sans-serif", R.string.setting_sans),
+    CONDENSED("sans-serif-condensed", R.string.setting_condensed),
+    SERIF("serif", R.string.setting_serif_2),
+    MONO("monospace", R.string.setting_mono),
 }
 
 /** Where the action row sits — Spicy Lyrics' "View Controls Position". */
@@ -254,6 +271,15 @@ data class Settings(
     val carSimpleScreen: Boolean = false,
     /** False until the welcome guide has been read once. */
     val welcomeSeen: Boolean = false,
+
+    /**
+     * The language of the app's own menus; SYSTEM follows the phone.
+     *
+     * Read by [com.melisma.app.util.AppLocale] in `attachBaseContext`, before
+     * the container exists — which is why the raw preference key is read there
+     * directly rather than through this class.
+     */
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM,
 
     // ---- timing ----------------------------------------------------------
     /** Nudges every timestamp. Positive means "the lyrics are late, pull them earlier". */
@@ -560,7 +586,7 @@ data class Settings(
 class SettingsStore(context: Context) : ProviderCredentials {
 
     private val prefs: SharedPreferences =
-        context.getSharedPreferences("melisma", Context.MODE_PRIVATE)
+        context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
 
     /**
      * Cookies and tokens, kept in their own file so backup can be told to leave them
@@ -735,6 +761,7 @@ class SettingsStore(context: Context) : ProviderCredentials {
         carSimpleScreen = prefs.getBoolean(KEY_CAR_SIMPLE, false),
         showCredits = prefs.getBoolean(KEY_SHOW_CREDITS, true),
         welcomeSeen = prefs.getBoolean(KEY_WELCOME_SEEN, false),
+        appLanguage = prefs.enum(KEY_APP_LANGUAGE, AppLanguage.SYSTEM),
 
         syncOffsetMs = prefs.getInt(KEY_SYNC_OFFSET, 0),
         tapLineToSeek = prefs.getBoolean(KEY_TAP_TO_SEEK, true),
@@ -918,6 +945,19 @@ class SettingsStore(context: Context) : ProviderCredentials {
     fun setShowCredits(value: Boolean) = edit { putBoolean(KEY_SHOW_CREDITS, value) }
 
     fun setWelcomeSeen(value: Boolean) = edit { putBoolean(KEY_WELCOME_SEEN, value) }
+
+    /**
+     * The language of the app's own menus.
+     *
+     * Written with `commit()` rather than the usual `apply()`: the activity
+     * recreates immediately after this returns, and the choice must be on disk
+     * before that happens — an async write that had not flushed yet would
+     * reopen the app in the old language if the process died in between.
+     */
+    fun setAppLanguage(language: AppLanguage) {
+        prefs.edit().putString(KEY_APP_LANGUAGE, language.name).commit()
+        _settings.value = read()
+    }
 
     // ---- timing -------------------------------------------------------------
 
@@ -1233,6 +1273,12 @@ class SettingsStore(context: Context) : ProviderCredentials {
     internal companion object {
         /** Milliseconds either way; past five seconds the lyrics are for a different line. */
         val SYNC_OFFSET_RANGE = -5_000..5_000
+
+        /** The SharedPreferences file the ordinary settings live in. */
+        const val PREFS_FILE = "melisma"
+
+        /** The language of the app's own menus; see [AppLanguage]. */
+        const val KEY_APP_LANGUAGE = "app_language"
 
         const val KEY_FONT_SCALE = "font_scale"
         const val KEY_FONT = "font"

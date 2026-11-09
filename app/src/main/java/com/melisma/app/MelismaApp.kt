@@ -22,6 +22,7 @@ import com.melisma.app.settings.PowerSaveWatcher
 import com.melisma.app.settings.Saving
 import com.melisma.app.settings.SettingsStore
 import com.melisma.app.update.Updater
+import com.melisma.app.util.AppLocale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -106,6 +107,7 @@ class AppContainer(context: Context) {
         settings.current.localLyricsFolderUri?.let { Uri.parse(it) }
     }
     val localFolderLyrics = LocalFolderLyricsProvider(
+        context = context,
         hasFolder = { settings.current.localLyricsFolderUri != null },
     ).also { it.attach(localFolderSource) }
     /**
@@ -322,6 +324,17 @@ class AppContainer(context: Context) {
                 .map { it.localLyricsFolderUri }
                 .distinctUntilChanged()
                 .collect { localFolderLyrics.invalidate() }
+        }
+
+        // The file index lives only in memory, so a fresh process starts
+        // without one — and the first lookup builds it inside the provider's
+        // 12-second timeout, which a big folder can outrun. AALyrics builds
+        // it eagerly at startup; this does the same, so the first track
+        // already finds its lyrics instead of timing out on the scan.
+        scope.launch {
+            if (settings.current.localLyricsFolderUri != null) {
+                localFolderLyrics.refreshIndex()
+            }
         }
 
         // The only place with both a Context and the settings. Installed unconditionally; whether it
@@ -734,6 +747,13 @@ class MelismaApp : Application() {
 
     lateinit var container: AppContainer
         private set
+
+    override fun attachBaseContext(base: Context) {
+        // The app's own menu language, chosen in Settings — applied before
+        // onCreate so the container and everything it builds reads resources
+        // in the chosen language. See AppLocale.
+        super.attachBaseContext(AppLocale.wrap(base))
+    }
 
     override fun onCreate() {
         super.onCreate()

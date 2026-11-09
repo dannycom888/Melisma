@@ -93,6 +93,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import com.melisma.app.update.Updater
+import androidx.compose.ui.res.stringResource
+import com.melisma.app.R
 
 @Composable
 fun PlayerScreen(
@@ -236,7 +238,7 @@ fun PlayerScreen(
                 val ok = container.lyrics.importLocal(uri)
                 Toast.makeText(
                     context,
-                    if (ok) "Lyrics file loaded" else "That file isn't lyrics we understand",
+                    if (ok) context.getString(R.string.player_lyrics_file_loaded) else context.getString(R.string.player_that_file_isn_t_lyrics_we_understand),
                     Toast.LENGTH_SHORT,
                 ).show()
             }
@@ -337,7 +339,7 @@ fun PlayerScreen(
             Column(Modifier.fillMaxSize()) {
                 val controls: @Composable () -> Unit = {
                     ViewControls(
-                        sourceLabel = if (demoMode) "Renderer preview" else snapshot.sourceLabel,
+                        sourceLabel = if (demoMode) stringResource(R.string.player_renderer_preview) else snapshot.sourceLabel,
                         providerName = providerLabel(demoMode, lyricsState),
                         settings = settings,
                         accent = colors.accent,
@@ -361,8 +363,7 @@ fun PlayerScreen(
                             if (now == TranslationSource.DEVICE && !supplied) {
                                 Toast.makeText(
                                     context,
-                                    "This source has no translation — translating on this " +
-                                        "device instead. The first language downloads a model.",
+                                    context.getString(R.string.player_this_source_has_no_translation_translating_on_th),
                                     Toast.LENGTH_LONG,
                                 ).show()
                             }
@@ -409,7 +410,7 @@ fun PlayerScreen(
                         },
                         onLongPressLine = { line ->
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            copyText(line.text, "Line copied")
+                            copyText(line.text, context.getString(R.string.player_line_copied))
                         },
                         onGrantPermission = onOpenNotificationAccess,
                         onStartDemo = { demoMode = true },
@@ -427,7 +428,7 @@ fun PlayerScreen(
                             if (doc != null) {
                                 copyText(
                                     doc.textForLines(selected),
-                                    if (selected.size == 1) "Line copied" else "${selected.size} lines copied",
+                                    if (selected.size == 1) context.getString(R.string.player_line_copied) else context.getString(R.string.player_lines_copied, selected.size),
                                 )
                             }
                             selectionMode = false
@@ -519,7 +520,7 @@ fun PlayerScreen(
                     ?: emptyList(),
                 onCopyAll = {
                     val doc = document
-                    if (doc != null) copyText(doc.allText(), "Lyrics copied")
+                    if (doc != null) copyText(doc.allText(), context.getString(R.string.player_lyrics_copied))
                 },
                 onShowWelcome = {
                     showSettings = false
@@ -542,6 +543,7 @@ private fun rememberPositionProvider(
     return remember(playback, offset) { { playback.currentMs() + offset } }
 }
 
+@Composable
 private fun providerLabel(demoMode: Boolean, state: LyricsState): String? = when {
     demoMode -> DemoLyrics.document.providerName
     (state as? LyricsState.Loaded)?.translating == true -> "translating…"
@@ -607,9 +609,9 @@ private fun MainContent(
         )
 
         !snapshot.hasTrack && !demoMode -> StatusMessage(
-            title = "Nothing playing",
-            body = "Start a song in Spotify — or any player — and the lyrics will show up here.",
-            action = if (BuildConfig.DEBUG) "Preview the renderer" else null,
+            title = stringResource(R.string.player_nothing_playing),
+            body = stringResource(R.string.player_start_a_song_in_spotify_or_any_player_and_the_ly),
+            action = if (BuildConfig.DEBUG) stringResource(R.string.player_preview_the_renderer) else null,
             accent = colors.accent,
             onAction = onStartDemo,
         )
@@ -670,22 +672,21 @@ private fun MainContent(
         }
 
         else -> when (val state = lyricsState) {
-            LyricsState.Idle -> StatusMessage("Waiting for a track", null)
+            LyricsState.Idle -> StatusMessage(stringResource(R.string.player_waiting_for_a_track), null)
 
             LyricsState.Loading -> LoadingLyrics(accent = colors.accent)
 
             LyricsState.NotFound -> StatusMessage(
-                title = "No lyrics found",
-                body = "None of the enabled sources have this one. You can load your own " +
-                    ".lrc or .ttml file with the note button.",
+                title = stringResource(R.string.player_no_lyrics_found),
+                body = stringResource(R.string.player_none_of_the_enabled_sources_have_this_one_you_ca),
             )
 
             LyricsState.Offline -> StatusMessage(
-                title = "You're offline",
-                body = "Cached lyrics still work — this track just isn't cached yet.",
+                title = stringResource(R.string.player_you_re_offline),
+                body = stringResource(R.string.player_cached_lyrics_still_work_this_track_just_isn_t_c),
             )
 
-            is LyricsState.Failed -> StatusMessage("Couldn't load lyrics", state.message)
+            is LyricsState.Failed -> StatusMessage(stringResource(R.string.player_couldn_t_load_lyrics), state.message)
 
             is LyricsState.Loaded -> Unit // handled above
         }
@@ -788,7 +789,7 @@ private fun PopupContent(
             } else {
                 Box(mod, contentAlignment = Alignment.Center) {
                     Text(
-                        text = snapshot.track?.title ?: "Nothing playing",
+                        text = snapshot.track?.title ?: stringResource(R.string.player_nothing_playing),
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center,
@@ -902,7 +903,7 @@ private fun ViewControls(
                 if (romanizationAvailable) {
                     LabelChip(
                         "文A",
-                        "Toggle romanization",
+                        stringResource(R.string.player_toggle_romanization),
                         settings.showRomanization,
                         accent,
                         onToggleRomanization,
@@ -916,9 +917,9 @@ private fun ViewControls(
                         AppIcons.Translate,
                         // Which source is in use is a Settings decision; here it is on or off.
                         when (settings.translationSource) {
-                            TranslationSource.OFF -> "Show translation"
-                            TranslationSource.PROVIDER -> "Translation from the source — tap to hide"
-                            TranslationSource.DEVICE -> "Translation on this device — tap to hide"
+                            TranslationSource.OFF -> stringResource(R.string.player_show_translation)
+                            TranslationSource.PROVIDER -> stringResource(R.string.player_translation_from_the_source_tap_to_hide)
+                            TranslationSource.DEVICE -> stringResource(R.string.player_translation_on_this_device_tap_to_hide)
                         },
                         settings.translationSource != TranslationSource.OFF,
                         accent,
@@ -927,7 +928,7 @@ private fun ViewControls(
                 }
                 ActionChip(
                     AppIcons.Cinema,
-                    "Cinema view",
+                    stringResource(R.string.player_cinema_view),
                     settings.viewMode == ViewMode.CINEMA,
                     accent,
                     onToggleCinema,
@@ -935,19 +936,19 @@ private fun ViewControls(
                 if (settings.viewMode == ViewMode.CINEMA) {
                     ActionChip(
                         AppIcons.SwapSides,
-                        "Swap which side the artwork is on",
+                        stringResource(R.string.player_swap_which_side_the_artwork_is_on),
                         false,
                         accent,
                         onSwapSide,
                     )
                 }
                 if (popupAvailable) {
-                    ActionChip(AppIcons.PopupWindow, "Popup lyrics", false, accent, onEnterPopup)
+                    ActionChip(AppIcons.PopupWindow, stringResource(R.string.settings_popup_lyrics), false, accent, onEnterPopup)
                 }
                 if (freeReadAvailable) {
                     ActionChip(
                         AppIcons.FreeRead,
-                        if (settings.freeRead) "Free reading — tap to follow the song again" else "Read freely",
+                        if (settings.freeRead) stringResource(R.string.player_free_reading_tap_to_follow_the_song_again) else stringResource(R.string.player_read_freely),
                         settings.freeRead,
                         accent,
                         onToggleFreeRead,
@@ -955,17 +956,17 @@ private fun ViewControls(
                 }
                 ActionChip(
                     AppIcons.CenterFocus,
-                    "Scroll back to the line that's playing",
+                    stringResource(R.string.player_scroll_back_to_the_line_that_s_playing),
                     false,
                     accent,
                     onScrollToActive,
                 )
                 if (hasDocument) {
-                    ActionChip(AppIcons.Copy, "Select lines to copy", false, accent, onStartSelection)
+                    ActionChip(AppIcons.Copy, stringResource(R.string.player_select_lines_to_copy), false, accent, onStartSelection)
                 }
-                ActionChip(AppIcons.NoteAdd, "Load a lyrics file", false, accent, onImport)
-                ActionChip(AppIcons.Refresh, "Look up again", false, accent, onRetry)
-                ActionChip(AppIcons.Tune, "Settings", false, accent, onSettings)
+                ActionChip(AppIcons.NoteAdd, stringResource(R.string.player_load_a_lyrics_file), false, accent, onImport)
+                ActionChip(AppIcons.Refresh, stringResource(R.string.player_look_up_again), false, accent, onRetry)
+                ActionChip(AppIcons.Tune, stringResource(R.string.settings_settings), false, accent, onSettings)
             }
         }
 
@@ -1058,15 +1059,15 @@ private fun SelectionBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = if (count == 0) "Tap lines to select" else "$count selected",
+            text = if (count == 0) stringResource(R.string.player_tap_lines_to_select) else stringResource(R.string.player_count_selected, count),
             color = Color.White,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.weight(1f),
         )
-        TextButton("All", accent, onSelectAll)
+        TextButton(stringResource(R.string.player_all), accent, onSelectAll)
         Spacer(Modifier.width(6.dp))
-        TextButton(if (count == 0) "Copy all" else "Copy", accent, onCopy)
+        TextButton(if (count == 0) stringResource(R.string.player_copy_all) else stringResource(R.string.player_copy), accent, onCopy)
         Spacer(Modifier.width(6.dp))
         Box(
             Modifier
@@ -1077,7 +1078,7 @@ private fun SelectionBar(
         ) {
             Icon(
                 AppIcons.Close,
-                contentDescription = "Cancel selection",
+                contentDescription = stringResource(R.string.player_cancel_selection),
                 tint = Color.White.copy(alpha = 0.7f),
                 modifier = Modifier.size(18.dp),
             )
@@ -1106,7 +1107,7 @@ private fun PermissionGate(accent: Color, onGrant: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Let Melisma see what's playing",
+            text = stringResource(R.string.player_let_melisma_see_what_s_playing),
             color = Color.White,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
@@ -1114,10 +1115,7 @@ private fun PermissionGate(accent: Color, onGrant: () -> Unit) {
         )
         Spacer(Modifier.height(14.dp))
         Text(
-            text = "Android publishes the track, artist and live playhead of whatever is " +
-                "playing as a media session — that's what the lyrics sync to. Reading it " +
-                "sits behind the “notification access” switch.\n\nNothing leaves the " +
-                "phone except a track title and artist, and only to look lyrics up.",
+            text = stringResource(R.string.player_android_publishes_the_track_artist_and_live_play),
             color = Color.White.copy(alpha = 0.68f),
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
@@ -1131,7 +1129,7 @@ private fun PermissionGate(accent: Color, onGrant: () -> Unit) {
                 .padding(horizontal = 26.dp, vertical = 13.dp),
         ) {
             Text(
-                text = "Open notification access",
+                text = stringResource(R.string.player_open_notification_access),
                 color = Color.Black.copy(alpha = 0.86f),
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp,
@@ -1143,8 +1141,7 @@ private fun PermissionGate(accent: Color, onGrant: () -> Unit) {
         // The step is not findable from the message, so it is spelled out here, with the way there.
         Spacer(Modifier.height(28.dp))
         Text(
-            text = "Switch greyed out, or “Restricted setting”? Tap it once anyway, then in " +
-                "Melisma's app settings open the ⋮ menu → Allow restricted settings, and try again.",
+            text = stringResource(R.string.player_switch_greyed_out_or_restricted_setting_tap_it_o),
             color = Color.White.copy(alpha = 0.5f),
             fontSize = 12.sp,
             textAlign = TextAlign.Center,
@@ -1152,7 +1149,7 @@ private fun PermissionGate(accent: Color, onGrant: () -> Unit) {
         Spacer(Modifier.height(10.dp))
         val context = LocalContext.current
         Text(
-            text = "Open Melisma's app settings",
+            text = stringResource(R.string.player_open_melisma_s_app_settings),
             color = accent,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
@@ -1254,7 +1251,7 @@ private fun LoadingLyrics(accent: Color) {
 private fun UnsyncedNotice(visible: Boolean) {
     AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut()) {
         Text(
-            text = "Unsynced lyrics — no timings available for this track",
+            text = stringResource(R.string.player_unsynced_lyrics_no_timings_available_for_this_tr),
             color = Color.White.copy(alpha = 0.45f),
             fontSize = 11.sp,
             modifier = Modifier

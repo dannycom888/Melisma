@@ -38,6 +38,8 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.res.stringResource
+import com.melisma.app.R
 
 /**
  * A column of rows that can be dragged into a different order by a handle.
@@ -209,6 +211,8 @@ fun <T> ReorderableColumn(
             val id = keyOf(item)
             key(id) {
                 val raised = id == lifted || id == settling
+                val moveUpLabel = stringResource(R.string.reorder_move_up)
+                val moveDownLabel = stringResource(R.string.reorder_move_down)
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -246,10 +250,10 @@ fun <T> ReorderableColumn(
                             Modifier
                                 .semantics(mergeDescendants = true) {
                                     customActions = listOf(
-                                        CustomAccessibilityAction("Move up") {
+                                        CustomAccessibilityAction(moveUpLabel) {
                                             step(id, -1); true
                                         },
-                                        CustomAccessibilityAction("Move down") {
+                                        CustomAccessibilityAction(moveDownLabel) {
                                             step(id, 1); true
                                         },
                                     )

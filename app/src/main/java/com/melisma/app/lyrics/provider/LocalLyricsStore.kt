@@ -8,6 +8,7 @@ import com.melisma.app.lyrics.parse.TtmlParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.melisma.app.R
 
 /**
  * Lyrics the user brought themselves.
@@ -19,7 +20,7 @@ import java.io.File
 class LocalLyricsStore(private val context: Context) : LyricsProvider {
 
     override val id = "local"
-    override val displayName = "Local file"
+    override val displayName = context.getString(R.string.localstore_local_file)
     override val canBeWordSynced = true
 
     private val directory: File

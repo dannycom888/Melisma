@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import com.melisma.app.media.MediaNotificationListener
+import com.melisma.app.util.AppLocale
 
 class MainActivity : ComponentActivity() {
 
@@ -58,6 +59,13 @@ class MainActivity : ComponentActivity() {
                 ACTION_PREVIOUS -> container.media.skipPrevious()
             }
         }
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        // The app's own menu language, chosen in Settings — applied before
+        // onCreate so every string the activity reads resolves in the chosen
+        // language. See AppLocale.
+        super.attachBaseContext(AppLocale.wrap(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -263,7 +271,7 @@ class MainActivity : ComponentActivity() {
                 add(
                     remoteAction(
                         android.R.drawable.ic_media_previous,
-                        "Previous",
+                        getString(R.string.main_previous),
                         ACTION_PREVIOUS,
                         0,
                     ),
@@ -277,14 +285,14 @@ class MainActivity : ComponentActivity() {
                         } else {
                             android.R.drawable.ic_media_play
                         },
-                        if (isPlaying) "Pause" else "Play",
+                        if (isPlaying) getString(R.string.mediapanel_pause) else getString(R.string.mediapanel_play),
                         ACTION_PLAY_PAUSE,
                         1,
                     ),
                 )
             }
             if (transport.skipNext) {
-                add(remoteAction(android.R.drawable.ic_media_next, "Next", ACTION_NEXT, 2))
+                add(remoteAction(android.R.drawable.ic_media_next, getString(R.string.main_next), ACTION_NEXT, 2))
             }
         }
     }

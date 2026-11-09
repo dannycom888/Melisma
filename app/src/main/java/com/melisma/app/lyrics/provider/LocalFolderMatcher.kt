@@ -28,7 +28,9 @@ import java.nio.charset.Charset
  * `与`/`和`; the title part must still equal the track title after
  * normalization. A file only reaches the bare-title tier when it has no
  * artist part at all — a file whose artist part names someone else does not
- * match on title alone.
+ * match on title alone — except when the track reports no artist at all:
+ * then there is no artist to contradict, and a file whose title part is
+ * this title matches too.
  *
  * This object is pure Kotlin with no Android dependency so the rules are
  * directly unit-testable on the JVM.
@@ -210,10 +212,12 @@ object LocalFolderMatcher {
     /**
      * Finds the audio file that is playing: its normalized stem must contain
      * the normalized track title and at least one normalized artist segment
-     * (an individual artist from a multi-artist credit). When several files
+     * (an individual artist from a multi-artist credit). When the track
+     * reports no artist at all, the title alone has to do — the pairing rule
+     * still applies through the same-stem `.lrc` lookup, and the residue
+     * tie-break still prefers the least extra text. When several files
      * qualify, the one with the least extra text besides the title and the
-     * matched artist wins; ties keep index order. Returns null when nothing
-     * qualifies (for example when the track reports no artist).
+     * matched artist wins; ties keep index order.
      */
     fun findAudioFile(
         title: String,
@@ -227,13 +231,13 @@ object LocalFolderMatcher {
             .map { normalize(it) }
             .filter { it.isNotEmpty() }
             .toSet()
-        if (artistSegments.isEmpty()) return null
         return audioFiles
             .mapNotNull { entry ->
                 val stem = entry.normalizedStem
                 if (!stem.contains(normalizedTitle)) return@mapNotNull null
-                val segment = artistSegments.firstOrNull { stem.contains(it) }
-                    ?: return@mapNotNull null
+                val segment = if (artistSegments.isEmpty()) "" else
+                    artistSegments.firstOrNull { stem.contains(it) }
+                        ?: return@mapNotNull null
                 val residue = (stem.length - normalizedTitle.length - segment.length).coerceAtLeast(0)
                 residue to entry
             }
@@ -259,6 +263,12 @@ object LocalFolderMatcher {
      * Returns the indexed files that match the track, ordered by preference:
      * files matching an earlier track key come first; files matching the same
      * key keep their index order.
+     *
+     * When the track reports no artist at all and nothing matched on the
+     * keys, files whose title part is this title match too — a file named
+     * `"Artist - Title.lrc"` is no longer held to an artist nobody reported.
+     * A known artist still rules those files out: with an artist to check
+     * against, only its files match.
      */
     fun match(
         title: String,
@@ -269,8 +279,16 @@ object LocalFolderMatcher {
         val ranked = indexed.mapNotNull { entry ->
             val bestKeyRank = keys.indexOfFirst { key -> key in entry.keys }
             if (bestKeyRank < 0) null else bestKeyRank to entry
+        }.sortedBy { it.first }.map { it.second }
+        if (ranked.isNotEmpty() || artists.any { it.isNotBlank() }) return ranked
+        val normalizedTitle = normalize(title)
+        if (normalizedTitle.isEmpty()) return emptyList()
+        return indexed.filter { entry ->
+            val stem = entry.file.displayName.removeSuffix(".lrc").removeSuffix(".LRC")
+            val (_, titlePart) = splitArtistTitle(stem) ?: return@filter false
+            normalize(titlePart) == normalizedTitle ||
+                normalize(stripBracketed(titlePart)) == normalizedTitle
         }
-        return ranked.sortedBy { it.first }.map { it.second }
     }
 
     /**
@@ -293,17 +311,24 @@ object LocalFolderMatcher {
     ): IndexedLrcFile? {
         if (parsed.isEmpty()) return null
         val keys = trackKeys(title, artists)
-        val bestRank = parsed.minOf { (file, _) ->
-            keys.indexOfFirst { key -> key in file.keys }
-        }
-        val tier = parsed.filter { (file, _) ->
-            keys.indexOfFirst { key -> key in file.keys } == bestRank
-        }
+        val bestRank = parsed.minOf { (file, _) -> keyRank(keys, file) }
+        val tier = parsed.filter { (file, _) -> keyRank(keys, file) == bestRank }
         if (durationMs <= 0L) return tier.first().first
         return tier.minByOrNull { (_, lastLineMs) ->
             val last = lastLineMs ?: Long.MAX_VALUE
             if (last == Long.MAX_VALUE) Long.MAX_VALUE else kotlin.math.abs(last - durationMs)
         }?.first
+    }
+
+    /**
+     * Where a file sits in the track's key order. A file that matches no key
+     * — one that only reached the match through the no-artist title-part
+     * fallback — ranks last, never first: without this, `-1` would beat a
+     * genuine title-only match.
+     */
+    private fun keyRank(keys: List<String>, file: IndexedLrcFile): Int {
+        val rank = keys.indexOfFirst { key -> key in file.keys }
+        return if (rank < 0) Int.MAX_VALUE else rank
     }
 
     /**

@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
+import com.melisma.app.R
 
 /**
  * Finds, downloads and hands over updates.
@@ -156,7 +157,7 @@ class Updater(
 
         _state.value = when {
             release == null ->
-                if (automatic) State.Idle else State.Failed("Could not read the releases page")
+                if (automatic) State.Idle else State.Failed(context.getString(R.string.updater_could_not_read_the_releases_page))
 
             !UpdateChecker.isNewer(release.versionName, currentVersion) ->
                 State.UpToDate(System.currentTimeMillis())
@@ -221,7 +222,7 @@ class Updater(
         }
 
         if (file == null) {
-            _state.value = State.Failed("The download did not finish")
+            _state.value = State.Failed(context.getString(R.string.updater_the_download_did_not_finish))
             return
         }
 
@@ -238,8 +239,7 @@ class Updater(
 
         if (!(handOver ?: { installSession(it) || openInstaller(it) })(file)) {
             _state.value = State.Failed(
-                "Could not start the install. The update is downloaded — " +
-                    "check for updates to try again without downloading it twice.",
+                context.getString(R.string.updater_could_not_start_the_install_the_update_is_downlo),
             )
         }
     }
@@ -397,7 +397,7 @@ class Updater(
             PackageInstaller.STATUS_FAILURE_ABORTED -> Unit
 
             else -> _state.value = State.Failed(
-                "Android did not install the update" + (message?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: ""),
+                context.getString(R.string.updater_android_did_not_install_the_update, (message?.takeIf { it.isNotBlank() }?.let { ": $it" } ?: "")),
             )
         }
     }

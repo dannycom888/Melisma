@@ -51,6 +51,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Collections
 import java.util.concurrent.TimeUnit
+import com.melisma.app.R
 
 sealed interface LyricsState {
     data object Idle : LyricsState
@@ -381,9 +382,9 @@ class LyricsRepository(
 
     private suspend fun announce() {
         val message = when (val state = base.value) {
-            is Base.Ready -> "Lyrics from ${state.document.providerName}"
-            Base.NotFound -> "Nobody has lyrics for this track"
-            Base.Offline -> "No connection — nothing to ask"
+            is Base.Ready -> context.getString(R.string.repo_lyrics_from, state.document.providerName)
+            Base.NotFound -> context.getString(R.string.repo_nobody_has_lyrics_for_this_track)
+            Base.Offline -> context.getString(R.string.repo_no_connection_nothing_to_ask)
             is Base.Failed -> state.message
             Base.Idle, Base.Loading -> return
         }
@@ -907,7 +908,7 @@ class LyricsRepository(
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
-            return Query.Broke(e.message ?: "Lookup failed")
+            return Query.Broke(e.message ?: context.getString(R.string.repo_lookup_failed))
         }
 
         // Correct each answer's claimed kind before anything is ranked or cached: a document whose

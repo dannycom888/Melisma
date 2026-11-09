@@ -1,11 +1,16 @@
 package com.melisma.app.lyrics.provider
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import com.melisma.app.lyrics.model.LineRole
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.nio.charset.Charset
 
 /**
@@ -14,7 +19,11 @@ import java.nio.charset.Charset
  * API (title + artist list instead of a Track, `fetch` returning a
  * [com.melisma.app.lyrics.model.LyricsDocument] instead of candidates).
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class LocalFolderMatcherTest {
+
+    private val context = ApplicationProvider.getApplicationContext<Context>()
 
     private fun indexed(vararg names: String): List<LocalFolderMatcher.IndexedLrcFile> {
         return names.map { name ->
@@ -60,10 +69,41 @@ class LocalFolderMatcherTest {
     }
 
     @Test
-    fun `audio anchor finds nothing when the track reports no artist`() {
+    fun `audio anchor falls back to the title alone when the track reports no artist`() {
         val audioFiles = audio("庄心妍_祁隆 - 一万个舍不得.mp3")
 
-        assertNull(LocalFolderMatcher.findAudioFile("一万个舍不得", emptyList(), audioFiles))
+        val found = LocalFolderMatcher.findAudioFile("一万个舍不得", emptyList(), audioFiles)
+
+        assertEquals("庄心妍_祁隆 - 一万个舍不得.mp3", found?.file?.displayName)
+    }
+
+    @Test
+    fun `audio anchor still finds nothing when the title is unknown`() {
+        val audioFiles = audio("庄心妍_祁隆 - 一万个舍不得.mp3")
+
+        assertNull(LocalFolderMatcher.findAudioFile("一千年以后", emptyList(), audioFiles))
+    }
+
+    @Test
+    fun `artist-title file matches on its title part when the track reports no artist`() {
+        val files = indexed("林俊杰 - 一千年以后.lrc", "其他歌.lrc")
+
+        val matched = LocalFolderMatcher.match("一千年以后", emptyList(), files)
+
+        assertEquals(listOf("林俊杰 - 一千年以后.lrc"), matched.map { it.file.displayName })
+    }
+
+    @Test
+    fun `pickWinner prefers a title-only file over a title-part fallback file`() {
+        val files = indexed("林俊杰 - 一千年以后.lrc", "一千年以后.lrc")
+        val parsed = listOf(
+            files[0] to 260_000L,
+            files[1] to 200_500L,
+        )
+
+        val winner = LocalFolderMatcher.pickWinner("一千年以后", emptyList(), 200_000L, parsed)
+
+        assertEquals("一千年以后.lrc", winner?.file?.displayName)
     }
 
     @Test
@@ -225,7 +265,7 @@ class LocalFolderMatcherTest {
                 "content://test/周杰伦 - 晴天.lrc" to lrc.toByteArray(Charsets.UTF_8),
             ),
         )
-        val provider = LocalFolderLyricsProvider()
+        val provider = LocalFolderLyricsProvider(context = context)
         provider.attach(source)
 
         val document = provider.fetch(request("晴天", "周杰伦", 269_000L))
@@ -245,7 +285,7 @@ class LocalFolderMatcherTest {
                 "content://test/庄心妍_祁隆 - 一万个舍不得.lrc" to lrc.toByteArray(Charsets.UTF_8),
             ),
         )
-        val provider = LocalFolderLyricsProvider()
+        val provider = LocalFolderLyricsProvider(context = context)
         provider.attach(source)
 
         val document = provider.fetch(request("一万个舍不得", "庄心妍", 312_000L))
@@ -255,13 +295,123 @@ class LocalFolderMatcherTest {
     }
 
     @Test
+    fun `provider returns the local document for 一千年以后 by 林俊杰`() = runBlocking {
+        val lrc = "[00:01.00]一千年以后\n[00:02.00]世界早已没有我\n"
+        val source = FakeSource(
+            mapOf(
+                "content://test/林俊杰 - 一千年以后.lrc" to lrc.toByteArray(Charsets.UTF_8),
+            ),
+            audioFiles = listOf("林俊杰 - 一千年以后.mp3"),
+        )
+        val provider = LocalFolderLyricsProvider(context = context)
+        provider.attach(source)
+
+        val document = provider.fetch(request("一千年以后", "林俊杰", 300_000L))
+
+        assertEquals("local-folder", document?.providerId)
+        assertEquals(
+            listOf("一千年以后", "世界早已没有我"),
+            leadTexts(document),
+        )
+    }
+
+    @Test
+    fun `provider returns the local document when the track reports no artist`() = runBlocking {
+        val lrc = "[00:01.00]一千年以后\n[00:02.00]世界早已没有我\n"
+        val source = FakeSource(
+            mapOf(
+                "content://test/林俊杰 - 一千年以后.lrc" to lrc.toByteArray(Charsets.UTF_8),
+            ),
+        )
+        val provider = LocalFolderLyricsProvider(context = context)
+        provider.attach(source)
+
+        val document = provider.fetch(request("一千年以后", "", 300_000L))
+
+        assertEquals("local-folder", document?.providerId)
+        assertEquals(
+            listOf("一千年以后", "世界早已没有我"),
+            leadTexts(document),
+        )
+    }
+
+    @Test
+    fun `refreshIndex builds the index and indexedFileCount reports it`() = runBlocking {
+        val source = FakeSource(
+            mapOf(
+                "content://test/林俊杰 - 一千年以后.lrc" to "[00:01.00]一千年以后\n".toByteArray(Charsets.UTF_8),
+                "content://test/周杰伦 - 晴天.lrc" to "[00:01.00]晴天\n".toByteArray(Charsets.UTF_8),
+            ),
+        )
+        val provider = LocalFolderLyricsProvider(context = context)
+        assertNull(provider.indexedFileCount())
+        provider.attach(source)
+        provider.refreshIndex()
+
+        assertEquals(2, provider.indexedFileCount())
+    }
+
+    @Test
+    fun `refreshIndex reports Ready with the file count`() = runBlocking {
+        val source = FakeSource(
+            mapOf(
+                "content://test/林俊杰 - 一千年以后.lrc" to "[00:01.00]一千年以后\n".toByteArray(Charsets.UTF_8),
+                "content://test/周杰伦 - 晴天.lrc" to "[00:01.00]晴天\n".toByteArray(Charsets.UTF_8),
+            ),
+        )
+        val provider = LocalFolderLyricsProvider(context = context)
+        provider.attach(source)
+
+        assertEquals(
+            LocalFolderLyricsProvider.IndexResult.Ready(2),
+            provider.refreshIndex(),
+        )
+    }
+
+    @Test
+    fun `refreshIndex reports Unreadable when the folder cannot be read`() = runBlocking {
+        val provider = LocalFolderLyricsProvider(context = context)
+        provider.attach(ThrowingSource())
+
+        assertEquals(
+            LocalFolderLyricsProvider.IndexResult.Unreadable,
+            provider.refreshIndex(),
+        )
+    }
+
+    @Test
+    fun `fetch says to pick the folder again when the folder cannot be read`() = runBlocking {
+        val provider = LocalFolderLyricsProvider(context = context)
+        provider.attach(ThrowingSource())
+
+        assertNull(provider.fetch(request("一千年以后", "林俊杰")))
+
+        assertTrue(
+            provider.noMatchReason?.contains("pick it again") == true,
+        )
+    }
+
+    @Test
+    fun `indexStatus reports NoFolder when no folder is configured`() = runBlocking {
+        val provider = LocalFolderLyricsProvider(
+            context = context,
+            hasFolder = { false },
+        )
+
+        assertEquals(
+            LocalFolderLyricsProvider.IndexResult.NoFolder,
+            provider.indexStatus(),
+        )
+    }
+
+    @Test
     fun `provider returns null when no local file matches`() = runBlocking {
         val source = FakeSource(
             mapOf(
                 "content://test/周杰伦 - 七里香.lrc" to "[00:01.00]窗外的麻雀\n".toByteArray(Charsets.UTF_8),
             ),
         )
-        val provider = LocalFolderLyricsProvider()
+        val provider = LocalFolderLyricsProvider(context = context)
         provider.attach(source)
 
         assertNull(provider.fetch(request("晴天", "周杰伦", 269_000L)))
@@ -269,7 +419,7 @@ class LocalFolderMatcherTest {
 
     @Test
     fun `provider returns null when no folder is attached`() = runBlocking {
-        val provider = LocalFolderLyricsProvider()
+        val provider = LocalFolderLyricsProvider(context = context)
 
         assertNull(provider.fetch(request("晴天", "周杰伦")))
         assertNull(provider.indexedFileCount())
@@ -284,7 +434,7 @@ class LocalFolderMatcherTest {
             ),
             audioFiles = listOf("庄心妍_祁隆 - 一万个舍不得.mp3"),
         )
-        val provider = LocalFolderLyricsProvider()
+        val provider = LocalFolderLyricsProvider(context = context)
         provider.attach(source)
 
         val document = provider.fetch(request("一万个舍不得", "庄心妍", 312_000L))
@@ -302,7 +452,7 @@ class LocalFolderMatcherTest {
             ),
             audioFiles = emptyList(),
         )
-        val provider = LocalFolderLyricsProvider()
+        val provider = LocalFolderLyricsProvider(context = context)
         provider.attach(source)
 
         val document = provider.fetch(request("晴天", "周杰伦", 269_000L))
@@ -320,7 +470,7 @@ class LocalFolderMatcherTest {
             ),
             audioFiles = listOf("庄心妍 - 一万个舍不得.mp3"),
         )
-        val provider = LocalFolderLyricsProvider()
+        val provider = LocalFolderLyricsProvider(context = context)
         provider.attach(source)
 
         val document = provider.fetch(request("一万个舍不得", "庄心妍", 312_000L))
@@ -346,5 +496,14 @@ class LocalFolderMatcherTest {
         }
 
         override suspend fun readBytes(file: LocalLrcFile): ByteArray? = files[file.uriString]
+    }
+
+    /** A folder whose read fails, as a saved SAF grant that was revoked does. */
+    private class ThrowingSource : LocalFolderSource {
+        override suspend fun listLrcFiles(): List<LocalLrcFile> {
+            throw SecurityException("persisted URI permission revoked")
+        }
+
+        override suspend fun readBytes(file: LocalLrcFile): ByteArray? = null
     }
 }

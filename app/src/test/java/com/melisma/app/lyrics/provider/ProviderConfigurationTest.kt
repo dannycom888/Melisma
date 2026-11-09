@@ -1,9 +1,14 @@
 package com.melisma.app.lyrics.provider
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import com.melisma.app.settings.Settings
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * A provider that needs a token must stay quiet until it has one.
@@ -12,7 +17,11 @@ import org.junit.Test
  * broken": an unconfigured provider that fires anyway wastes a request per track and
  * reports a failure the user cannot act on.
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class ProviderConfigurationTest {
+
+    private val context = ApplicationProvider.getApplicationContext<Context>()
 
     private class FakeCredentials(
         override var spDcCookie: String? = null,
@@ -107,7 +116,7 @@ class ProviderConfigurationTest {
             MusixmatchProvider(credentials).id,
             LrcLibProvider(credentials).id,
             LrcRedProvider().id,
-            LocalFolderLyricsProvider().id,
+            LocalFolderLyricsProvider(context = context).id,
             "local",
         )
         // Guards against adding a provider to the settings order and forgetting to build
@@ -152,7 +161,7 @@ class ProviderConfigurationTest {
 
     @Test
     fun `local folder is unconfigured until a folder is picked`() {
-        assertFalse(LocalFolderLyricsProvider(hasFolder = { false }).isConfigured)
-        assertTrue(LocalFolderLyricsProvider(hasFolder = { true }).isConfigured)
+        assertFalse(LocalFolderLyricsProvider(context = context, hasFolder = { false }).isConfigured)
+        assertTrue(LocalFolderLyricsProvider(context = context, hasFolder = { true }).isConfigured)
     }
 }

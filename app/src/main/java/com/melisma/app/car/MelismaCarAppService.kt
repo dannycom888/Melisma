@@ -1,9 +1,11 @@
 package com.melisma.app.car
 
+import android.content.Context
 import android.content.pm.ApplicationInfo
 import androidx.car.app.CarAppService
 import androidx.car.app.Session
 import androidx.car.app.validation.HostValidator
+import com.melisma.app.util.AppLocale
 
 /**
  * The Android Auto entry point.
@@ -23,6 +25,13 @@ import androidx.car.app.validation.HostValidator
  * distributed as an APK that is the same audience it already has.
  */
 class MelismaCarAppService : CarAppService() {
+
+    override fun attachBaseContext(base: Context) {
+        // The app's own menu language, chosen in Settings — the car screen
+        // reads its strings from this service's context, so it is wrapped
+        // here rather than relying on the Application's. See AppLocale.
+        super.attachBaseContext(AppLocale.wrap(base))
+    }
 
     override fun onCreateSession(): Session = MelismaSession()
 

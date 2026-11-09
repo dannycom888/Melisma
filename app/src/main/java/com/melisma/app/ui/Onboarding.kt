@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.melisma.app.R
+import androidx.compose.ui.res.stringResource
 
 /**
  * What to read before using the app.
@@ -81,7 +82,7 @@ fun WelcomeSheet(
                 )
                 Spacer(Modifier.width(14.dp))
                 Text(
-                    "Welcome to Melisma",
+                    stringResource(R.string.onboarding_welcome_to_melisma),
                     color = Color.White,
                     fontSize = 21.sp,
                     fontWeight = FontWeight.Bold,
@@ -89,8 +90,7 @@ fun WelcomeSheet(
                 )
             }
             Text(
-                "Word-by-word lyrics for whatever your phone is playing — Spotify, YouTube " +
-                    "Music, a local player, anything.",
+                stringResource(R.string.onboarding_word_by_word_lyrics_for_whatever_your_phone_is_p),
                 color = Color.White.copy(alpha = 0.62f),
                 fontSize = 14.sp,
                 modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
@@ -98,83 +98,49 @@ fun WelcomeSheet(
 
             Step(
                 number = "1",
-                title = "One permission, and it is required",
-                body = "Android publishes what is playing — track, artist and the live " +
-                    "playhead — as a “media session”, and that is what the lyrics sync to. " +
-                    "Reading it sits behind the notification-access switch. Without it the " +
-                    "app cannot see anything at all.\n\nNothing leaves your phone except a " +
-                    "track title and artist, and only to look lyrics up. Notifications " +
-                    "themselves are never read — but they are delivered, which keeps the app " +
-                    "running, so it hands the permission back after ten minutes with nothing " +
-                    "playing and picks it up again when you open it. Settings → Battery if you " +
-                    "want that sooner, later or never.",
+                title = stringResource(R.string.onboarding_one_permission_and_it_is_required),
+                body = stringResource(R.string.onboarding_android_publishes_what_is_playing_track_artist_a),
                 accent = accent,
                 done = permissionGranted,
             )
 
             Step(
                 number = "2",
-                title = "No tokens needed for most music",
-                body = "Four sources work immediately, with no account and no setup:\n\n" +
-                    "•  AMLL TTML Database — community-timed word-by-word lyrics, made by " +
-                    "hand and released to the public domain\n" +
-                    "•  LRCLIB — open community database\n" +
-                    "•  Musixmatch — word-by-word for most Western music\n" +
-                    "•  NetEase — word-by-word for East Asian music, with hand-checked " +
-                    "romanization and translation\n\nTranslations that come with the lyrics " +
-                    "are shown as they are. Translating into a language of your own choosing " +
-                    "is a separate setting, because it runs a model on the phone and has to " +
-                    "download it first.\n\nYou can also import your own .lrc or .ttml file " +
-                    "for any track, which always wins.",
+                title = stringResource(R.string.onboarding_no_tokens_needed_for_most_music),
+                body = stringResource(R.string.onboarding_four_sources_work_immediately_with_no_account_an),
                 accent = accent,
             )
 
             Step(
                 number = "3",
-                title = "Tokens are optional, and each adds something",
-                body = "All of these live in Settings → Tokens and endpoints, and stay on " +
-                    "this device:\n\n" +
-                    "•  Spotify access token — brings back Spotify's own lyrics, the artist " +
-                    "image, the full-size cover and the tempo, for about an hour before it " +
-                    "expires. The cookie route Spotify closed; the token itself still works, " +
-                    "and you copy it from the web player's own network requests. It is under " +
-                    "Developer, because an hour is an errand rather than a setting.\n\n" +
-                    "•  Apple Music developer + user token — the best data there is: " +
-                    "syllable timings with official romanizations and translations. Needs a " +
-                    "subscription.\n\n" +
-                    "•  Musixmatch cookie — optional. It works without one, using a token it " +
-                    "mints for itself, but that is rate-limited per network. Paste the " +
-                    "musixmatchUserToken cookie from a signed-in musixmatch.com session and " +
-                    "that limit does not apply.\n\n" +
-                    "Skip all of them and the app still works. A source with no token stays " +
-                    "quiet rather than failing.",
+                title = stringResource(R.string.onboarding_tokens_are_optional_and_each_adds_something),
+                body = stringResource(R.string.onboarding_all_of_these_live_in_settings_tokens_and_endpoin),
                 accent = accent,
             )
 
             Spacer(Modifier.height(8.dp))
 
             if (!permissionGranted) {
-                PrimaryButton("Open notification access", accent, onGrantPermission)
+                PrimaryButton(stringResource(R.string.player_open_notification_access), accent, onGrantPermission)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Greyed out? Android 13 wants one more tap for an app installed from a browser: " +
-                        "Settings → Apps → Melisma → ⋮ → Allow restricted settings.",
+                    stringResource(R.string.onboarding_greyed_out_android_13_wants_one_more_tap_for_an),
                     color = Color.White.copy(alpha = 0.45f),
                     fontSize = 12.sp,
                 )
                 Spacer(Modifier.height(10.dp))
             }
-            SecondaryButton("Add tokens in settings", accent, onOpenSettings)
+            SecondaryButton(stringResource(R.string.onboarding_add_tokens_in_settings), accent, onOpenSettings)
             Spacer(Modifier.height(10.dp))
             SecondaryButton(
-                if (permissionGranted) "Start listening" else "Later",
+                if (permissionGranted) stringResource(R.string.onboarding_start_listening) else "Later",
                 accent,
                 onDismiss,
             )
 
             Spacer(Modifier.height(12.dp))
             Text(
-                "You can read this again from Settings → About.",
+                stringResource(R.string.onboarding_you_can_read_this_again_from_settings_about),
                 color = Color.White.copy(alpha = 0.4f),
                 fontSize = 12.sp,
             )

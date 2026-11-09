@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.sp
 import com.melisma.app.media.PlaybackPosition
 import com.melisma.app.media.Transport
 import com.melisma.app.media.TrackInfo
+import androidx.compose.ui.res.stringResource
+import com.melisma.app.R
 
 /**
  * The now-playing bar: cover, title, a scrubbable progress line, and transport.
@@ -117,7 +119,7 @@ fun NowBar(
                     modifier = Modifier.titleMarquee(playback.isPlaying),
                 )
                 Text(
-                    text = track.artist.ifBlank { "Unknown artist" },
+                    text = track.artist.ifBlank { stringResource(R.string.mediapanel_unknown_artist) },
                     color = Color.White.copy(alpha = 0.62f),
                     fontSize = 13.sp,
                     maxLines = 1,
@@ -132,14 +134,14 @@ fun NowBar(
                 IconButton(onClick = onPrevious, enabled = transport.skipPrevious) {
                     Icon(
                         AppIcons.SkipPrevious,
-                        contentDescription = "Previous track",
+                        contentDescription = stringResource(R.string.mediapanel_previous_track),
                         tint = Color.White.copy(alpha = 0.85f),
                     )
                 }
                 IconButton(onClick = onTogglePlay, enabled = transport.playPause) {
                     Icon(
                         if (playback.isPlaying) AppIcons.Pause else AppIcons.PlayArrow,
-                        contentDescription = if (playback.isPlaying) "Pause" else "Play",
+                        contentDescription = if (playback.isPlaying) stringResource(R.string.mediapanel_pause) else "Play",
                         tint = Color.White,
                         modifier = Modifier.size(30.dp),
                     )
@@ -147,7 +149,7 @@ fun NowBar(
                 IconButton(onClick = onNext, enabled = transport.skipNext) {
                     Icon(
                         AppIcons.SkipNext,
-                        contentDescription = "Next track",
+                        contentDescription = stringResource(R.string.mediapanel_next_track),
                         tint = Color.White.copy(alpha = 0.85f),
                     )
                 }

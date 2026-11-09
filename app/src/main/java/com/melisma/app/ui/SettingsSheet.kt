@@ -7,6 +7,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import android.content.Intent
 import android.net.Uri
+import android.app.Activity
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -66,6 +67,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.melisma.app.AppContainer
+import com.melisma.app.settings.AppLanguage
 import com.melisma.app.settings.BackgroundStyle
 import com.melisma.app.settings.CanvasMode
 import com.melisma.app.settings.ControlsPosition
@@ -90,6 +92,7 @@ import com.melisma.app.lyrics.LyricsRepository
 import com.melisma.app.lyrics.HokkienDictionary
 import com.melisma.app.lyrics.LyricsState
 import com.melisma.app.lyrics.provider.CacheServerProvider
+import com.melisma.app.lyrics.provider.LocalFolderLyricsProvider
 import com.melisma.app.lyrics.romanize.HokkienDetector
 import com.melisma.app.settings.ChineseReading
 import com.melisma.app.settings.HokkienSpelling
@@ -105,6 +108,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.Image
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.documentfile.provider.DocumentFile
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -115,6 +119,7 @@ import com.melisma.app.update.Updater
 import com.melisma.app.settings.ArtworkSource
 import com.melisma.app.media.ServerSource
 import com.melisma.app.lyrics.provider.SpotifyWebToken
+import androidx.compose.ui.res.stringResource
 
 /**
  * Whether the long-form explanations are showing.
@@ -137,60 +142,56 @@ private fun Help(text: String) {
 }
 
 private class ProviderInfo(
-    val title: String,
-    val description: String,
+    @param:StringRes val titleRes: Int,
+    @param:StringRes val descriptionRes: Int,
     /** Shown instead of the description when the provider is missing its credentials. */
-    val needs: String? = null,
+    @param:StringRes val needsRes: Int? = null,
 )
 
 private val PROVIDER_INFO = mapOf(
     "local" to ProviderInfo(
-        "Your own files",
-        "Imported .lrc / .ttml. Always tried first and always wins.",
+        R.string.settings_your_own_files,
+        R.string.settings_imported_lrc_ttml_always_tried_first_and_always,
     ),
     "local-folder" to ProviderInfo(
-        "Local files",
-        "Your own .lrc files in a folder you pick. The only source in this build.",
-        needs = "Pick a lyrics folder above",
+        R.string.settings_local_files,
+        R.string.settings_your_own_lrc_files_in_a_folder_you_pick_the_only,
+        needsRes = R.string.settings_pick_a_lyrics_folder_above,
     ),
     "cacheserver" to ProviderInfo(
-        "Cache server",
-        "Your own server, holding what it has already fetched. Ranked first by default, because " +
-            "an answer it already has cost nobody a request.",
-        needs = "Needs a URL under Developer",
+        R.string.settings_cache_server,
+        R.string.settings_your_own_server_holding_what_it_has_already_fetc,
+        needsRes = R.string.settings_needs_a_url_under_developer,
     ),
     "applemusic" to ProviderInfo(
-        "Apple Music",
-        "Word-by-word, with official romanizations and translations. The best data there is.",
-        needs = "Needs a developer token and a music user token below",
+        R.string.settings_apple_music,
+        R.string.settings_word_by_word_with_official_romanizations_and_tra,
+        needsRes = R.string.settings_needs_a_developer_token_and_a_music_user_token_b,
     ),
     "lrcred" to ProviderInfo(
-        "lrc.red",
-        "Apple Music's word-by-word lyrics, romanizations and translations by ISRC, with no " +
-            "account. Exact for any song the app has identified; a title search otherwise.",
+        R.string.settings_lrc_red,
+        R.string.settings_apple_music_s_word_by_word_lyrics_romanizations,
     ),
     "amll" to ProviderInfo(
-        "AMLL TTML Database",
-        "Community-timed, word-by-word, public domain. Hand-made syllable timings with " +
-            "readings and translations, and no account needed.",
+        R.string.settings_amll_ttml_database,
+        R.string.settings_community_timed_word_by_word_public_domain_hand,
     ),
     "spotify" to ProviderInfo(
-        "Spotify",
-        "The lyrics the Spotify app shows, matched to the exact track.",
-        needs = "Unavailable — Spotify closed the endpoint this needed",
+        R.string.settings_spotify_2,
+        R.string.settings_the_lyrics_the_spotify_app_shows_matched_to_the,
+        needsRes = R.string.settings_unavailable_spotify_closed_the_endpoint_this_nee,
     ),
     "netease" to ProviderInfo(
-        "NetEase Cloud Music",
-        "Word-by-word plus hand-checked romanization and translation. Best for Japanese, Korean and Chinese.",
+        R.string.settings_netease_cloud_music,
+        R.string.settings_word_by_word_plus_hand_checked_romanization_and,
     ),
     "musixmatch" to ProviderInfo(
-        "Musixmatch",
-        "Word-by-word for most Western music. No account needed; a signed-in token avoids " +
-            "the anonymous rate limit.",
+        R.string.settings_musixmatch_2,
+        R.string.settings_word_by_word_for_most_western_music_no_account_n,
     ),
     "lrclib" to ProviderInfo(
-        "LRCLIB",
-        "Open community database, no account needed.",
+        R.string.settings_lrclib_2,
+        R.string.settings_open_community_database_no_account_needed,
     ),
 )
 
@@ -202,19 +203,24 @@ private val PROVIDER_INFO = mapOf(
  * at lunchtime.
  */
 private val BACKGROUND_TIMEOUTS = listOf(
-    2 to "2 min",
-    10 to "10 min",
-    30 to "30 min",
-    0 to "Never",
+    2 to R.string.settings_2_min,
+    10 to R.string.settings_10_min,
+    30 to R.string.settings_30_min,
+    0 to R.string.settings_never,
 )
 
 /** A short, practical list rather than every language ML Kit supports. */
 private val TRANSLATION_TARGETS = listOf(
-    "en" to "English", "es" to "Spanish", "fr" to "French", "de" to "German",
-    "it" to "Italian", "pt" to "Portuguese", "nl" to "Dutch", "pl" to "Polish",
-    "ru" to "Russian", "tr" to "Turkish", "ar" to "Arabic", "hi" to "Hindi",
-    "id" to "Indonesian", "th" to "Thai", "vi" to "Vietnamese", "sv" to "Swedish",
-    "ja" to "Japanese", "ko" to "Korean", "zh" to "Chinese",
+    "en" to R.string.settings_english, "es" to R.string.settings_spanish,
+    "fr" to R.string.settings_french, "de" to R.string.settings_german,
+    "it" to R.string.settings_italian, "pt" to R.string.settings_portuguese,
+    "nl" to R.string.settings_dutch, "pl" to R.string.settings_polish,
+    "ru" to R.string.settings_russian, "tr" to R.string.settings_turkish,
+    "ar" to R.string.settings_arabic, "hi" to R.string.settings_hindi,
+    "id" to R.string.settings_indonesian, "th" to R.string.settings_thai,
+    "vi" to R.string.settings_vietnamese, "sv" to R.string.settings_swedish,
+    "ja" to R.string.settings_japanese, "ko" to R.string.settings_korean,
+    "zh" to R.string.settings_chinese,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -279,7 +285,7 @@ fun SettingsSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Settings",
+                    stringResource(R.string.settings_settings),
                     color = Color.White,
                     fontSize = 19.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -305,37 +311,54 @@ fun SettingsSheet(
                 }
             }
             Text(
-                if (showHelp) "Tap ? again to hide the explanations."
-                else "Tap ? to explain what each setting does.",
+                if (showHelp) stringResource(R.string.settings_tap_again_to_hide_the_explanations)
+                else stringResource(R.string.settings_tap_to_explain_what_each_setting_does),
                 color = Color.White.copy(alpha = 0.4f),
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 2.dp),
             )
 
+            // The app's own menu language — kept out of any section so it is
+            // visible the moment the sheet opens, and kept apart from the
+            // "Language" section below, which is about the lyrics (romanization,
+            // furigana, translation), not the menus. Picking one recreates the
+            // activity at once, so the whole screen switches language without
+            // restarting the app; the sheet itself closes with it.
+            ChipGroup(
+                label = stringResource(R.string.app_language_title),
+                options = AppLanguage.entries.map { it to stringResource(it.labelRes) },
+                selected = settings.appLanguage,
+                accent = accent,
+                onSelect = {
+                    store.setAppLanguage(it)
+                    (context as? Activity)?.recreate()
+                },
+            )
+            Hint(stringResource(R.string.app_language_hint))
+
             Section(
-                title = "View",
-                subtitle = "Cinema, where the controls sit",
+                title = stringResource(R.string.settings_view),
+                subtitle = stringResource(R.string.settings_cinema_where_the_controls_sit),
                 open = openSection == "view",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "view") null else "view" },
             ) {
 
                 ChipGroup(
-                    label = "Layout",
-                    options = ViewMode.entries.map { it to it.label },
+                    label = stringResource(R.string.settings_layout),
+                    options = ViewMode.entries.map { it to stringResource(it.labelRes) },
                     selected = settings.viewMode,
                     accent = accent,
                     onSelect = { store.setViewMode(it) },
                 )
                 Hint(
-                    "Cinema puts the album art beside the words — above them on a phone held " +
-                        "upright, to the side when it is turned.",
+                    stringResource(R.string.settings_cinema_puts_the_album_art_beside_the_words_above),
                 )
 
                 if (settings.viewMode == ViewMode.CINEMA) {
                     ChipGroup(
-                        label = "Artwork on the",
-                        options = MediaPanelSide.entries.map { it to it.label },
+                        label = stringResource(R.string.settings_artwork_on_the),
+                        options = MediaPanelSide.entries.map { it to stringResource(it.labelRes) },
                         selected = settings.mediaPanelSide,
                         accent = accent,
                         onSelect = { store.setMediaPanelSide(it) },
@@ -343,9 +366,9 @@ fun SettingsSheet(
                 }
 
                 ChipGroup(
-                    label = "Controls",
+                    label = stringResource(R.string.settings_controls),
                     options = ControlsPosition.entries.map {
-                        it to if (it == ControlsPosition.TOP) "Top" else "Bottom"
+                        it to if (it == ControlsPosition.TOP) stringResource(R.string.settings_top) else stringResource(R.string.settings_bottom)
                     },
                     selected = settings.controlsPosition,
                     accent = accent,
@@ -353,76 +376,61 @@ fun SettingsSheet(
                 )
 
                 ToggleRow(
-                    title = "Volume slider",
-                    subtitle = "A volume band under the artwork and the now-playing bar",
+                    title = stringResource(R.string.settings_volume_slider),
+                    subtitle = stringResource(R.string.settings_a_volume_band_under_the_artwork_and_the_now_play),
                     checked = settings.showVolumeSlider,
                     accent = accent,
                     onCheckedChange = { store.setShowVolumeSlider(it) },
                 )
                 Help(
-                    "Drives the phone's own music volume, not the player's mixer, so it moves with the hardware keys.",
+                    stringResource(R.string.settings_drives_the_phone_s_own_music_volume_not_the_play),
                 )
 
                 ChipGroup(
-                    label = "Look for bigger cover art",
-                    options = ArtworkSource.entries.map { it to it.label },
+                    label = stringResource(R.string.settings_look_for_bigger_cover_art),
+                    options = ArtworkSource.entries.map { it to stringResource(it.labelRes) },
                     selected = settings.artworkSource,
                     accent = accent,
                     onSelect = { store.setArtworkSource(it) },
                 )
                 Help(
-                    "A media session's artwork is often 300 pixels or less — fine in a " +
-                        "notification, visibly soft behind full-screen lyrics. Both of these " +
-                        "are public and need no account: iTunes is one request and returns " +
-                        "squares up to 1000px; the Cover Art Archive is community-run, slower, " +
-                        "and reaches releases Apple does not carry. Either is only used when " +
-                        "what the player gave us is too small to look at, and a match that " +
-                        "does not look convincing is discarded — a wrong cover is worse than " +
-                        "a soft one.",
+                    stringResource(R.string.settings_a_media_session_s_artwork_is_often_300_pixels_or),
                 )
 
                 ToggleRow(
-                    title = "Artist image and full-size cover",
-                    subtitle = "From Spotify if you have a token, otherwise Apple Music",
+                    title = stringResource(R.string.settings_artist_image_and_full_size_cover),
+                    subtitle = stringResource(R.string.settings_from_spotify_if_you_have_a_token_otherwise_apple),
                     checked = settings.useSpotifyExtras,
                     accent = accent,
                     onCheckedChange = { store.setUseSpotifyExtras(it) },
                 )
                 Help(
-                    "The artist's photo, the cover at full size rather than the thumbnail a " +
-                        "media session publishes, and — from Spotify only — the tempo, which " +
-                        "paces how fast the background drifts.\n\nSpotify goes first when " +
-                        "there is a token, because it identifies the track by the id the " +
-                        "player handed over and so cannot be matching the wrong song. Apple " +
-                        "Music is next: it can only match on title and artist, but its " +
-                        "developer token lasts months where Spotify's lasts an hour, so it is " +
-                        "the one still working tomorrow. Both need a token pasted under " +
-                        "Developer. With neither, the cover-art search above is used instead.",
+                    stringResource(R.string.settings_the_artist_s_photo_the_cover_at_full_size_rather),
                 )
 
                 ToggleRow(
-                    title = "Compact mode",
-                    subtitle = "Smaller type and tighter spacing, for split screen",
+                    title = stringResource(R.string.settings_compact_mode),
+                    subtitle = stringResource(R.string.settings_smaller_type_and_tighter_spacing_for_split_scree),
                     checked = settings.compactMode,
                     accent = accent,
                     onCheckedChange = { store.setCompactMode(it) },
                 )
                 Help(
-                    "Meant for split screen or a small window. The floating window switches to it on its own, so you do not need this for that.",
+                    stringResource(R.string.settings_meant_for_split_screen_or_a_small_window_the_flo),
                 )
             }
 
             Section(
-                title = "Popup lyrics",
-                subtitle = "The floating window",
+                title = stringResource(R.string.settings_popup_lyrics),
+                subtitle = stringResource(R.string.settings_the_floating_window),
                 open = openSection == "popup",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "popup") null else "popup" },
             ) {
 
                 ToggleRow(
-                    title = "Popup lyrics",
-                    subtitle = "Carry on in a floating window over other apps",
+                    title = stringResource(R.string.settings_popup_lyrics),
+                    subtitle = stringResource(R.string.settings_carry_on_in_a_floating_window_over_other_apps),
                     checked = settings.popupLyricsEnabled,
                     accent = accent,
                     onCheckedChange = { store.setPopupLyricsEnabled(it) },
@@ -430,94 +438,74 @@ fun SettingsSheet(
 
                 if (settings.popupLyricsEnabled) {
                     ToggleRow(
-                        title = "Shrink automatically",
-                        subtitle = "Enter the window when you leave the app, the way YouTube does",
+                        title = stringResource(R.string.settings_shrink_automatically),
+                        subtitle = stringResource(R.string.settings_enter_the_window_when_you_leave_the_app_the_way),
                         checked = settings.popupAutoEnter,
                         accent = accent,
                         onCheckedChange = { store.setPopupAutoEnter(it) },
                     )
                 Help(
-                    "On Android 12 and up the system does the shrinking itself, which is why it animates smoothly. Below that the app asks as you leave, which is a little more abrupt.",
+                    stringResource(R.string.settings_on_android_12_and_up_the_system_does_the_shrinki),
                 )
                     ChipGroup(
-                        label = "Shape",
-                        options = PopupShape.entries.map { it to it.label },
+                        label = stringResource(R.string.settings_shape),
+                        options = PopupShape.entries.map { it to stringResource(it.labelRes) },
                         selected = settings.popupShape,
                         accent = accent,
                         onSelect = { store.setPopupShape(it) },
                     )
                     ToggleRow(
-                        title = "Show the cover in the window",
-                        subtitle = "Only in Cinema view · off leaves the whole window to the words",
+                        title = stringResource(R.string.settings_show_the_cover_in_the_window),
+                        subtitle = stringResource(R.string.settings_only_in_cinema_view_off_leaves_the_whole_window),
                         checked = settings.popupShowArtwork,
                         accent = accent,
                         onCheckedChange = { store.setPopupShowArtwork(it) },
                     )
                     Help(
-                        "The floating window follows the main one: it is the same screen made " +
-                            "small, so it shows the cover when Cinema view does and only then. " +
-                            "Shrinking the app should not add a panel that was not on screen a " +
-                            "moment ago.",
+                        stringResource(R.string.settings_the_floating_window_follows_the_main_one_it_is_t),
                     )
                     Help(
-                        "The window's background is held still rather than drifting, because it is " +
-                            "on screen over whatever else you are doing for far longer than the " +
-                            "app itself is. The switch for that is under Battery, with everything " +
-                            "else that trades a little of the look for charge.",
+                        stringResource(R.string.settings_the_window_s_background_is_held_still_rather_tha),
                     )
                 }
             }
 
             Section(
-                title = "Android Auto",
-                subtitle = "The lyrics on a car screen",
+                title = stringResource(R.string.settings_android_auto),
+                subtitle = stringResource(R.string.settings_the_lyrics_on_a_car_screen),
                 open = openSection == "car",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "car") null else "car" },
             ) {
                 Hint(
-                    "The car screen follows every setting on this page — view, background, " +
-                        "romanization, translation, timing — so there is nothing to set from the " +
-                        "driver's seat.",
+                    stringResource(R.string.settings_the_car_screen_follows_every_setting_on_this_pag),
                 )
                 Help(
-                    "Melisma is not on Google Play, so Android Auto will not load it until you allow " +
-                        "apps it did not get from the store. On the phone: Settings \u2192 Connected " +
-                        "devices \u2192 Android Auto, tap \u201cVersion and permission info\u201d about " +
-                        "ten times until it offers development settings, then in the \u22ee menu \u2192 " +
-                        "Developer settings turn on Unknown sources. One time per phone, and the same " +
-                        "switch every sideloaded car app needs.",
+                    stringResource(R.string.settings_melisma_is_not_on_google_play_so_android_auto_wi),
                 )
 
                 ToggleRow(
-                    title = "Plain screen in the car",
-                    subtitle = "Two lines of text instead of the moving lyrics",
+                    title = stringResource(R.string.settings_plain_screen_in_the_car),
+                    subtitle = stringResource(R.string.settings_two_lines_of_text_instead_of_the_moving_lyrics),
                     checked = settings.carSimpleScreen,
                     accent = accent,
                     onCheckedChange = { store.setCarSimpleScreen(it) },
                 )
                 Help(
-                    "Off, a car gets the same lyrics this phone draws: the same renderer, the same " +
-                        "background, the same album art in Cinema view. The movement is what makes " +
-                        "your place in a line readable without studying it.\n\nOn, it is two lines of " +
-                        "static text \u2014 the words now and the words next \u2014 and nothing else. " +
-                        "Reach for it if the moving version pulls at your eyes, or if your car declines " +
-                        "to give the app a screen to draw on, in which case you get this " +
-                        "anyway.\n\nEither way the controls are the car's own buttons rather than " +
-                        "ours: the host draws them, at the size it thinks a driver should be given.",
+                    stringResource(R.string.settings_off_a_car_gets_the_same_lyrics_this_phone_draws),
                 )
             }
 
             Section(
-                title = "Lyrics display",
-                subtitle = "Size, font, effects",
+                title = stringResource(R.string.settings_lyrics_display),
+                subtitle = stringResource(R.string.settings_size_font_effects),
                 open = openSection == "display",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "display") null else "display" },
             ) {
 
                 SliderRow(
-                    label = "Text size",
+                    label = stringResource(R.string.settings_text_size),
                     value = settings.fontScale,
                     range = 0.7f..1.6f,
                     display = "${(settings.fontScale * 100).toInt()}%",
@@ -526,106 +514,103 @@ fun SettingsSheet(
                 )
 
                 ChipGroup(
-                    label = "Font",
-                    options = LyricsFont.entries.map { it to it.label },
+                    label = stringResource(R.string.settings_font),
+                    options = LyricsFont.entries.map { it to stringResource(it.labelRes) },
                     selected = settings.font,
                     accent = accent,
                     onSelect = { store.setFont(it) },
                 )
 
                 ToggleRow(
-                    title = "Depth blur",
-                    subtitle = "Lines further from the current one fall out of focus",
+                    title = stringResource(R.string.settings_depth_blur),
+                    subtitle = stringResource(R.string.settings_lines_further_from_the_current_one_fall_out_of_f),
                     checked = settings.lineBlur,
                     accent = accent,
                     onCheckedChange = { store.setLineBlur(it) },
                 )
                 Help(
-                    "Lines away from the current one are drawn as a blur of themselves, which is what gives the page depth. It is done by drawing the glyphs transparent with a shadow behind them; if that renders oddly on your device, turn it off.",
+                    stringResource(R.string.settings_lines_away_from_the_current_one_are_drawn_as_a_b),
                 )
 
                 ToggleRow(
-                    title = "Simple mode",
-                    subtitle = "Flatter contrast and no letter-by-letter emphasis",
+                    title = stringResource(R.string.settings_simple_mode),
+                    subtitle = stringResource(R.string.settings_flatter_contrast_and_no_letter_by_letter_emphasi),
                     checked = settings.simpleMode,
                     accent = accent,
                     onCheckedChange = { store.setSimpleMode(it) },
                 )
                 Help(
-                    "Drops the letter-by-letter emphasis on long syllables and flattens the contrast between sung and unsung lines. Calmer, and cheaper to draw.",
+                    stringResource(R.string.settings_drops_the_letter_by_letter_emphasis_on_long_syll),
                 )
 
                 ToggleRow(
-                    title = "Minimal mode",
-                    subtitle = "Sung lines shrink and leave the page instead of dimming",
+                    title = stringResource(R.string.settings_minimal_mode),
+                    subtitle = stringResource(R.string.settings_sung_lines_shrink_and_leave_the_page_instead_of),
                     checked = settings.minimalMode,
                     accent = accent,
                     onCheckedChange = { store.setMinimalMode(it) },
                 )
                 Help(
-                    "Only the line being sung and the ones still to come stay on screen. Good for following along, less good for reading ahead or behind.",
+                    stringResource(R.string.settings_only_the_line_being_sung_and_the_ones_still_to_c),
                 )
 
                 ChipGroup(
-                    label = "Text animation",
-                    options = TextAnimationStyle.entries.map { it to it.label },
+                    label = stringResource(R.string.settings_text_animation),
+                    options = TextAnimationStyle.entries.map { it to stringResource(it.labelRes) },
                     selected = settings.textAnimationStyle,
                     accent = accent,
                     onSelect = { store.setTextAnimationStyle(it) },
                 )
-                Hint(settings.textAnimationStyle.description)
+                Hint(stringResource(settings.textAnimationStyle.descriptionRes))
                 Help(
-                    "Calculate reads the playhead every frame, so it is always exactly right " +
-                        "but only as smooth as the player's reporting. Animate starts a steady " +
-                        "sweep when each syllable begins, which looks smoother but can drift a " +
-                        "little across a seek — it snaps back if it drifts far.",
+                    stringResource(R.string.settings_calculate_reads_the_playhead_every_frame_so_it_i),
                 )
 
                 ToggleRow(
-                    title = "Highlight the line you hold",
-                    subtitle = "A tinted box appears under your finger; holding also copies the line",
+                    title = stringResource(R.string.settings_highlight_the_line_you_hold),
+                    subtitle = stringResource(R.string.settings_a_tinted_box_appears_under_your_finger_holding_a),
                     checked = settings.lineTapHighlight,
                     accent = accent,
                     onCheckedChange = { store.setLineTapHighlight(it) },
                 )
                 Help(
-                    "A desktop shows this when the mouse is over a line; a finger has no hover, so it appears while you hold — which is also the gesture that copies the line.",
+                    stringResource(R.string.settings_a_desktop_shows_this_when_the_mouse_is_over_a_li),
                 )
 
                 ToggleRow(
-                    title = "Duet indent",
-                    subtitle = "Inset duet lines so the two voices read as separate columns",
+                    title = stringResource(R.string.settings_duet_indent),
+                    subtitle = stringResource(R.string.settings_inset_duet_lines_so_the_two_voices_read_as_separ),
                     checked = settings.duetLinePadding,
                     accent = accent,
                     onCheckedChange = { store.setDuetLinePadding(it) },
                 )
                 Help(
-                    "Only affects songs whose lyrics mark two voices. Off gives every line the same small inset.",
+                    stringResource(R.string.settings_only_affects_songs_whose_lyrics_mark_two_voices),
                 )
 
                 ToggleRow(
-                    title = "Show credits",
-                    subtitle = "Songwriters and the lyrics source, after the last line",
+                    title = stringResource(R.string.settings_show_credits),
+                    subtitle = stringResource(R.string.settings_songwriters_and_the_lyrics_source_after_the_last),
                     checked = settings.showCredits,
                     accent = accent,
                     onCheckedChange = { store.setShowCredits(it) },
                 )
                 Help(
-                    "Printed after the last line, inside the scroll rather than in the app's chrome, so it reads as the end of the song.",
+                    stringResource(R.string.settings_printed_after_the_last_line_inside_the_scroll_ra),
                 )
             }
 
             Section(
-                title = "Background",
-                subtitle = "What sits behind the words",
+                title = stringResource(R.string.settings_background),
+                subtitle = stringResource(R.string.settings_what_sits_behind_the_words),
                 open = openSection == "background",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "background") null else "background" },
             ) {
 
                 ChipGroup(
-                    label = "Style",
-                    options = BackgroundStyle.entries.map { it to it.label },
+                    label = stringResource(R.string.settings_style),
+                    options = BackgroundStyle.entries.map { it to stringResource(it.labelRes) },
                     selected = settings.backgroundStyle,
                     accent = accent,
                     onSelect = { store.setBackgroundStyle(it) },
@@ -634,8 +619,7 @@ fun SettingsSheet(
                     !container.spotifyExtrasAvailable
                 ) {
                     Hint(
-                        "The artist background needs the Spotify cookie below — without it this " +
-                            "falls back to the cover art.",
+                        stringResource(R.string.settings_the_artist_background_needs_the_spotify_cookie_b),
                     )
                 }
 
@@ -643,7 +627,7 @@ fun SettingsSheet(
                     settings.backgroundStyle == BackgroundStyle.AUTO
                 ) {
                     SliderRow(
-                        label = "Cover blur",
+                        label = stringResource(R.string.settings_cover_blur),
                         value = settings.backgroundBlur.toFloat(),
                         range = 0f..67f,
                         display = "${settings.backgroundBlur}px",
@@ -651,13 +635,13 @@ fun SettingsSheet(
                         onChange = { store.setBackgroundBlur(it.toInt()) },
                     )
                 Help(
-                    "The blur comes from how far the image is shrunk before being scaled back up, so 0 leaves the artwork nearly sharp and 67 leaves a wash of its colours.",
+                    stringResource(R.string.settings_the_blur_comes_from_how_far_the_image_is_shrunk),
                 )
                 }
 
                 ChipGroup(
-                    label = "Spotify Canvas",
-                    options = CanvasMode.entries.map { it to it.label },
+                    label = stringResource(R.string.settings_spotify_canvas),
+                    options = CanvasMode.entries.map { it to stringResource(it.labelRes) },
                     selected = settings.canvasMode,
                     accent = accent,
                     onSelect = { store.setCanvasMode(it) },
@@ -665,37 +649,37 @@ fun SettingsSheet(
                 if (settings.canvasMode != CanvasMode.OFF && !container.spotifyExtrasAvailable &&
                     !settings.cacheServerExtrasActive
                 ) {
-                    Hint("Canvas needs the same Spotify token as Spotify lyrics — without it, the style above shows.")
+                    Hint(stringResource(R.string.settings_canvas_needs_the_same_spotify_token_as_spotify_l))
                 }
                 AnimatedVisibility(visible = settings.canvasMode != CanvasMode.OFF) {
                     Column(Modifier.fillMaxWidth()) {
                         ToggleRow(
-                            title = "Show its still on Data Saver",
-                            subtitle = "Off skips Canvas over mobile data",
+                            title = stringResource(R.string.settings_show_its_still_on_data_saver),
+                            subtitle = stringResource(R.string.settings_off_skips_canvas_over_mobile_data),
                             checked = settings.dataSaverStillCanvas,
                             accent = accent,
                             onCheckedChange = { store.setDataSaverStillCanvas(it) },
                         )
                         Help(
-                            "With Data Saver on over mobile data, a still of the Canvas instead of the video: a few dozen kilobytes a track rather than a few megabytes.",
+                            stringResource(R.string.settings_with_data_saver_on_over_mobile_data_a_still_of_t),
                         )
                     }
                 }
                 Help(
-                    "The looping video Spotify shows behind some tracks, in place of the style above. Tracks without one, other players and a floating window held still show the style above instead, battery saver shows a still of it or the style above, as set under Battery, and nothing is downloaded while the app is off screen. Needs a Spotify token, or a cache server that has the track's Canvas. Blurred needs Android 12 or later.\n\nA Canvas is portrait, so in landscape Full moves: into the cover's place in Cinema view, and down the middle, blurred, with the style above either side in the lyrics view.\n\nIn the car only Blurred plays: a full video is something to watch, and a driver should not be given one.",
+                    stringResource(R.string.settings_the_looping_video_spotify_shows_behind_some_trac),
                 )
             }
 
             Section(
-                title = "Timing",
-                subtitle = "Offset, scrolling, taps",
+                title = stringResource(R.string.settings_timing),
+                subtitle = stringResource(R.string.settings_offset_scrolling_taps),
                 open = openSection == "timing",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "timing") null else "timing" },
             ) {
 
                 SliderRow(
-                    label = "Sync offset",
+                    label = stringResource(R.string.settings_sync_offset),
                     value = settings.syncOffsetMs.toFloat(),
                     range = -3000f..3000f,
                     display = "${settings.syncOffsetMs}ms",
@@ -707,80 +691,64 @@ fun SettingsSheet(
                 )
                 Hint(
                     when {
-                        settings.syncOffsetMs == 0 -> "In step with the player."
-                        settings.syncOffsetMs > 0 -> "Lyrics run ${settings.syncOffsetMs}ms early."
-                        else -> "Lyrics run ${-settings.syncOffsetMs}ms late."
-                    } + " Bluetooth needs a negative value.",
+                        settings.syncOffsetMs == 0 -> stringResource(R.string.settings_in_step_with_the_player)
+                        settings.syncOffsetMs > 0 -> stringResource(R.string.settings_lyrics_run_ms_early, settings.syncOffsetMs)
+                        else -> stringResource(R.string.settings_lyrics_run_ms_late, -settings.syncOffsetMs)
+                    } + stringResource(R.string.settings_bluetooth_needs_a_negative_value),
                 )
                 Help(
-                    "Which way to go, in terms of what you notice rather than the sign: if the " +
-                        "highlight reaches a word before you hear it, go negative. If you hear a " +
-                        "word before the highlight gets there, go positive.\n\nBluetooth is " +
-                        "almost always the first case, and needs a negative value. The player " +
-                        "reports where it is in the file, but the earbuds are 150 to 250 " +
-                        "milliseconds behind that — so the lyrics are running ahead of your ears " +
-                        "and need holding back.\n\nTap the number to type an exact offset, to the " +
-                        "millisecond.\n\nThe scrubber and the times either side of it " +
-                        "are deliberately not shifted. They report where the player actually is, " +
-                        "which is what you want when tapping a line to jump.",
+                    stringResource(R.string.settings_which_way_to_go_in_terms_of_what_you_notice_rath),
                 )
                 Row(Modifier.padding(bottom = 8.dp)) {
                     StepButton("−50", accent) { store.setSyncOffset(settings.syncOffsetMs - 50) }
                     Spacer(Modifier.width(8.dp))
-                    StepButton("Reset", accent) { store.setSyncOffset(0) }
+                    StepButton(stringResource(R.string.settings_reset), accent) { store.setSyncOffset(0) }
                     Spacer(Modifier.width(8.dp))
                     StepButton("+50", accent) { store.setSyncOffset(settings.syncOffsetMs + 50) }
                 }
 
                 ToggleRow(
-                    title = "Tap a line to jump there",
-                    subtitle = "Seeks the player to that line",
+                    title = stringResource(R.string.settings_tap_a_line_to_jump_there),
+                    subtitle = stringResource(R.string.settings_seeks_the_player_to_that_line),
                     checked = settings.tapLineToSeek,
                     accent = accent,
                     onCheckedChange = { store.setTapLineToSeek(it) },
                 )
                 Help(
-                    "Only works on lyrics that have timings. Holding a line still copies it either way.",
+                    stringResource(R.string.settings_only_works_on_lyrics_that_have_timings_holding_a),
                 )
 
                 SliderRow(
-                    label = "Take scrolling back after",
+                    label = stringResource(R.string.settings_take_scrolling_back_after),
                     value = settings.autoScrollResumeMs / 1000f,
                     range = 0.5f..6f,
-                    display = "%.1fs".format(settings.autoScrollResumeMs / 1000f),
+                    display = stringResource(R.string.settings_1fs).format(settings.autoScrollResumeMs / 1000f),
                     accent = accent,
                     onChange = { store.setAutoScrollResumeMs((it * 1000).toInt()) },
                 )
                 Help(
-                    "After you drag the lyrics by hand, this is how long they wait before scrolling themselves again.",
+                    stringResource(R.string.settings_after_you_drag_the_lyrics_by_hand_this_is_how_lo),
                 )
             }
 
             Section(
-                title = "Players to follow",
-                subtitle = "Which apps count as music",
+                title = stringResource(R.string.settings_players_to_follow),
+                subtitle = stringResource(R.string.settings_which_apps_count_as_music),
                 open = openSection == "players",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "players") null else "players" },
             ) {
 
                 Hint(
-                    "Anything that plays audio publishes the same kind of notification a music player " +
-                        "does — a title, an artist, a length — so a video, a podcast or a browser tab " +
-                        "arrives looking exactly like a song, gets looked up, and fills the cache with " +
-                        "tracks that do not exist. Turn one off here and it is ignored entirely.",
+                    stringResource(R.string.settings_anything_that_plays_audio_publishes_the_same_kin),
                 )
                 Help(
-                    "Entirely, in the sense that matters for the battery as well as for the " +
-                        "lyrics: a player switched off here does not count as something playing. It " +
-                        "cannot hold the screen awake, it cannot keep the drifting background " +
-                        "moving, and it cannot stop the app standing down and letting go of the " +
-                        "process. A video left running for an hour is a video, not a song.",
+                    stringResource(R.string.settings_entirely_in_the_sense_that_matters_for_the_batte),
                 )
 
                 val players = settings.seenPlayers.entries.sortedBy { it.value.lowercase() }
                 if (players.isEmpty()) {
-                    Hint("Nothing yet. Play something and the app that played it appears here.")
+                    Hint(stringResource(R.string.settings_nothing_yet_play_something_and_the_app_that_play))
                 } else {
                     for ((packageName, label) in players) {
                         ToggleRow(
@@ -795,8 +763,8 @@ fun SettingsSheet(
                         )
                     }
                     ActionRow(
-                        title = "Forget this list",
-                        subtitle = "Clears the names above; they come back as each app plays again",
+                        title = stringResource(R.string.settings_forget_this_list),
+                        subtitle = stringResource(R.string.settings_clears_the_names_above_they_come_back_as_each_ap),
                         accent = accent,
                         onClick = { store.forgetSeenPlayers() },
                     )
@@ -804,151 +772,144 @@ fun SettingsSheet(
             }
 
             Section(
-                title = "Language",
-                subtitle = "Romanization, furigana, translation",
+                title = stringResource(R.string.settings_language),
+                subtitle = stringResource(R.string.settings_romanization_furigana_translation),
                 open = openSection == "language",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "language") null else "language" },
             ) {
 
                 ToggleRow(
-                    title = "Romanization",
-                    subtitle = "Japanese, Korean, Chinese, Cyrillic and Greek in Latin letters",
+                    title = stringResource(R.string.settings_romanization),
+                    subtitle = stringResource(R.string.settings_japanese_korean_chinese_cyrillic_and_greek_in_la),
                     checked = settings.showRomanization,
                     accent = accent,
                     onCheckedChange = { store.setShowRomanization(it) },
                 )
                 Help(
-                    "Replaces the words with their Latin transcription, per syllable, so the karaoke fill still follows what you are singing. Japanese goes through a dictionary rather than a character table, because kanji have no fixed reading.",
+                    stringResource(R.string.settings_replaces_the_words_with_their_latin_transcriptio),
                 )
 
                 if (settings.showRomanization) {
                     ToggleRow(
-                        title = "Drop tone marks",
-                        subtitle = "`ni hao` instead of `nǐ hǎo`",
+                        title = stringResource(R.string.settings_drop_tone_marks),
+                        subtitle = stringResource(R.string.settings_ni_hao_instead_of_n_h_o),
                         checked = settings.romanizationStripsDiacritics,
                         accent = accent,
                         onCheckedChange = { store.setStripDiacritics(it) },
                     )
                     ToggleRow(
-                        title = "Keep the characters",
-                        subtitle = "Shown small under the reading, above any translation",
+                        title = stringResource(R.string.settings_keep_the_characters),
+                        subtitle = stringResource(R.string.settings_shown_small_under_the_reading_above_any_translat),
                         checked = settings.showOriginalUnderRomanization,
                         accent = accent,
                         onCheckedChange = { store.setShowOriginalUnderRomanization(it) },
                     )
                     Help(
-                        "A reading cannot always be trusted on its own. Chinese characters are " +
-                            "given one fixed reading each, whatever word they are in — 音乐 comes " +
-                            "out `yin le` where it is said `yinyue`, and 的 is always `de` even " +
-                            "where it is `dì`. The characters are what tells you which word it " +
-                            "was. Costs a row of height per line.",
+                        stringResource(R.string.settings_a_reading_cannot_always_be_trusted_on_its_own_ch),
                     )
 
                     ToggleRow(
-                        title = "Recognise Taiwanese Hokkien",
-                        subtitle = "Off reads every Chinese song as Mandarin",
+                        title = stringResource(R.string.settings_recognise_taiwanese_hokkien),
+                        subtitle = stringResource(R.string.settings_off_reads_every_chinese_song_as_mandarin),
                         checked = settings.detectHokkien,
                         accent = accent,
                         onCheckedChange = { store.setDetectHokkien(it) },
                     )
                     ChipGroup(
-                        label = "Spell Hokkien in",
-                        options = HokkienSpelling.entries.map { it to it.label },
+                        label = stringResource(R.string.settings_spell_hokkien_in),
+                        options = HokkienSpelling.entries.map { it to stringResource(it.labelRes) },
                         selected = settings.hokkienSpelling,
                         accent = accent,
                         onSelect = { store.setHokkienSpelling(it) },
                     )
                     Help(
-                        "Hokkien is written in the same characters as Mandarin, so a Hokkien song used " +
-                            "to get pinyin. It is recognised by its words — 毋, 袂, 佇, 明仔載 — and " +
-                            "read in Tâi-lô, the Ministry of Education's system, or POJ, the older church " +
-                            "romanization. A song written only in characters both languages share can " +
-                            "be missed; This track can say which it is.",
+                        stringResource(R.string.settings_hokkien_is_written_in_the_same_characters_as_man),
                     )
                     HokkienDictionaryRows(container.hokkienDictionary, accent)
                 }
 
                 ChipGroup(
-                    label = "Furigana",
-                    options = FuriganaMode.entries.map { it to it.label },
+                    label = stringResource(R.string.settings_furigana),
+                    options = FuriganaMode.entries.map { it to stringResource(it.labelRes) },
                     selected = settings.furigana,
                     accent = accent,
                     onSelect = { store.setFurigana(it) },
                 )
                 Hint(
                     if (settings.showRomanization) {
-                        "Turn romanization off to see it: furigana is a gloss over the original " +
-                            "Japanese, so the two are not shown together."
+                        stringResource(R.string.settings_turn_romanization_off_to_see_it_furigana_is_a_gl)
                     } else {
-                        "Prints the kana reading in small type over the kanji, the way a " +
-                            "songbook does. Japanese only, and the readings come from the same " +
-                            "dictionary the romanization uses."
+                        stringResource(R.string.settings_prints_the_kana_reading_in_small_type_over_the_k)
                     },
                 )
 
                 ChipGroup(
-                    label = "Translation",
-                    options = TranslationSource.entries.map { it to it.label },
+                    label = stringResource(R.string.settings_translation),
+                    options = TranslationSource.entries.map { it to stringResource(it.labelRes) },
                     selected = settings.translationSource,
                     accent = accent,
                     onSelect = { store.setTranslationSource(it) },
                 )
                 Hint(
                     when (settings.translationSource) {
-                        TranslationSource.OFF -> "No translation under the lyrics."
+                        TranslationSource.OFF -> stringResource(R.string.settings_no_translation_under_the_lyrics)
                         TranslationSource.PROVIDER ->
-                            "Whatever came with the lyrics. Free, instant, and written by a " +
-                                "person — but in the language they chose."
+                            stringResource(R.string.settings_whatever_came_with_the_lyrics_free_instant_and_w)
                         TranslationSource.DEVICE ->
-                            "Machine translation into the language you pick below. Downloads a " +
-                                "model the first time."
+                            stringResource(R.string.settings_machine_translation_into_the_language_you_pick_b)
                     },
                 )
                 Help(
-                    "These are two different things, which is why they are two different " +
-                        "choices. NetEase and the AMLL database ship human translations with the " +
-                        "lyrics: nothing to download, nothing sent anywhere, available the " +
-                        "instant the words are — but a Japanese song is usually translated into " +
-                        "Chinese, because that is who transcribed it. On-device translation is " +
-                        "ML Kit running on your phone, into the language you asked for, and it " +
-                        "replaces whatever the source supplied rather than leaving you reading " +
-                        "a language you did not choose. It still sends nothing anywhere; the " +
-                        "cost is a one-off model download per language pair.",
+                    stringResource(R.string.settings_these_are_two_different_things_which_is_why_they),
                 )
 
                 if (settings.translationSource == TranslationSource.DEVICE) {
                     ChipGroup(
-                        label = "Translate into",
-                        options = TRANSLATION_TARGETS,
+                        label = stringResource(R.string.settings_translate_into),
+                        options = TRANSLATION_TARGETS.map { (code, labelRes) -> code to stringResource(labelRes) },
                         selected = settings.translationTarget,
                         accent = accent,
                         perRow = 4,
                         onSelect = { store.setTranslationTarget(it) },
                     )
                     ToggleRow(
-                        title = "Download models on Wi-Fi only",
-                        subtitle = "Each language is roughly 30 MB",
+                        title = stringResource(R.string.settings_download_models_on_wi_fi_only),
+                        subtitle = stringResource(R.string.settings_each_language_is_roughly_30_mb),
                         checked = settings.translationWifiOnly,
                         accent = accent,
                         onCheckedChange = { store.setTranslationWifiOnly(it) },
                     )
                     Help(
-                        "Only affects the one-off model download, not the translating itself, " +
-                            "which is offline.",
+                        stringResource(R.string.settings_only_affects_the_one_off_model_download_not_the),
                     )
                 }
             }
 
             Section(
-                title = "Where lyrics come from",
-                subtitle = "Your own .lrc files",
+                title = stringResource(R.string.settings_where_lyrics_come_from),
+                subtitle = stringResource(R.string.settings_your_own_lrc_files),
                 open = openSection == "sources",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "sources") null else "sources" },
             ) {
                 // Local-only build: the folder is the only source. The picker
                 // and the rescan live here, above the single provider row.
+                //
+                // The folder status is state, not a one-shot read: a rescan
+                // that only ever changed a boolean left the user staring at
+                // the same row with no idea whether anything had happened.
+                // Scanning shows at once, the count shows when it lands
+                // (zero included), and a folder that can no longer be opened
+                // says so and offers the picker again instead of failing
+                // silently.
+                var folderStatus by remember {
+                    mutableStateOf<LocalFolderLyricsProvider.IndexResult?>(null)
+                }
+                var folderScanning by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    folderStatus = container.localFolderLyrics.indexStatus()
+                }
                 val folderPicker = rememberLauncherForActivityResult(
                     ActivityResultContracts.OpenDocumentTree(),
                 ) { uri ->
@@ -961,13 +922,9 @@ fun SettingsSheet(
                     }
                     store.setLocalLyricsFolderUri(uri.toString())
                     scope.launch {
-                        container.localFolderLyrics.refreshIndex()
+                        folderStatus = container.localFolderLyrics.refreshIndex()
                         container.lyrics.retry()
                     }
-                }
-                var folderRescanned by remember { mutableStateOf(false) }
-                val folderFileCount by produceState<Int?>(initialValue = null, folderRescanned) {
-                    value = container.localFolderLyrics.indexedFileCount()
                 }
                 val folderName = settings.localLyricsFolderUri
                     ?.let {
@@ -975,33 +932,61 @@ fun SettingsSheet(
                             DocumentFile.fromTreeUri(context, Uri.parse(it))?.name
                         }.getOrNull()
                     }
+                val folderUnreadable = folderStatus is LocalFolderLyricsProvider.IndexResult.Unreadable
                 ActionRow(
-                    title = "Local lyrics folder",
-                    subtitle = folderName
-                        ?: "Not picked yet — tap to choose the folder with your .lrc files",
+                    title = if (folderUnreadable) {
+                        stringResource(R.string.settings_folder_unreadable)
+                    } else {
+                        stringResource(R.string.settings_local_lyrics_folder)
+                    },
+                    subtitle = if (folderUnreadable) {
+                        stringResource(R.string.settings_tap_to_pick_folder_again)
+                    } else {
+                        folderName
+                            ?: stringResource(R.string.settings_not_picked_yet_tap_to_choose_the_folder_with_you)
+                    },
                     accent = accent,
                     onClick = { folderPicker.launch(null) },
                 )
+                if (folderUnreadable) {
+                    Hint(
+                        stringResource(R.string.settings_folder_unreadable_body),
+                    )
+                }
                 ActionRow(
-                    title = if (folderRescanned) "Lyrics folder rescanned" else "Rescan local lyrics",
-                    subtitle = when (val count = folderFileCount) {
-                        null -> "Re-reads the folder for new .lrc files"
-                        else -> "$count .lrc files found"
+                    title = if (folderScanning) {
+                        stringResource(R.string.settings_scanning)
+                    } else if (folderStatus != null) {
+                        stringResource(R.string.settings_lyrics_folder_rescanned)
+                    } else {
+                        stringResource(R.string.settings_rescan_local_lyrics)
+                    },
+                    subtitle = when (val status = folderStatus) {
+                        null -> stringResource(R.string.settings_checking_folder)
+                        is LocalFolderLyricsProvider.IndexResult.NoFolder ->
+                            stringResource(R.string.settings_re_reads_the_folder_for_new_lrc_files)
+                        is LocalFolderLyricsProvider.IndexResult.Ready ->
+                            if (status.lrcCount == 0) {
+                                stringResource(R.string.settings_no_lrc_files_found)
+                            } else {
+                                stringResource(R.string.settings_lrc_files_found, status.lrcCount)
+                            }
+                        is LocalFolderLyricsProvider.IndexResult.Unreadable ->
+                            stringResource(R.string.settings_folder_unreadable_body)
                     },
                     accent = accent,
                     onClick = {
+                        if (folderScanning) return@ActionRow
                         scope.launch {
-                            container.localFolderLyrics.refreshIndex()
+                            folderScanning = true
+                            folderStatus = container.localFolderLyrics.refreshIndex()
                             container.lyrics.retry()
-                            folderRescanned = true
+                            folderScanning = false
                         }
                     },
                 )
                 Hint(
-                    "Lyrics come only from .lrc files in this folder — nothing is " +
-                        "looked up online. A song's audio file is found first and the " +
-                        ".lrc with the same name is used, as in Poweramp; otherwise " +
-                        "the file name is matched against the song and artist.",
+                    stringResource(R.string.settings_lyrics_come_only_from_lrc_files_in_this_folder_n),
                 )
 
                 // The cache server only appears once the developer options are on. Everyone else
@@ -1022,12 +1007,14 @@ fun SettingsSheet(
                         store.setProviderOrder(settings.providerOrder.withVisibleOrder(order))
                     },
                 ) { id, raised, handle ->
-                    val info = PROVIDER_INFO[id] ?: ProviderInfo(id, "")
+                    val info = PROVIDER_INFO[id]
                     val provider = container.providers.firstOrNull { it.id == id }
                     val configured = provider?.isConfigured ?: true
                     ProviderRow(
-                        title = info.title,
-                        subtitle = if (configured) info.description else (info.needs ?: info.description),
+                        title = info?.let { stringResource(it.titleRes) } ?: id,
+                        subtitle = info?.let {
+                            stringResource(if (configured) it.descriptionRes else (it.needsRes ?: it.descriptionRes))
+                        } ?: "",
                         warn = !configured,
                         enabled = id in settings.enabledProviders,
                         raised = raised,
@@ -1038,130 +1025,98 @@ fun SettingsSheet(
                 }
 
                 ToggleRow(
-                    title = "Look up the next track early",
-                    subtitle = "Only when the player says what is queued next",
+                    title = stringResource(R.string.settings_look_up_the_next_track_early),
+                    subtitle = stringResource(R.string.settings_only_when_the_player_says_what_is_queued_next),
                     checked = settings.prefetchNextTrack,
                     accent = accent,
                     onCheckedChange = { store.setPrefetchNextTrack(it) },
                 )
                 Help(
-                    "Fetches the queued track's lyrics while the current one is still playing, " +
-                        "so they are on screen the moment it changes — and are there later even " +
-                        "with no signal. Most players publish no queue at all (Spotify among " +
-                        "them), in which case this does nothing rather than guessing. It always " +
-                        "waits for the track on screen to resolve first, and a track it fails to " +
-                        "find is looked up again properly when it actually plays.",
+                    stringResource(R.string.settings_fetches_the_queued_track_s_lyrics_while_the_curr),
                 )
             }
 
             Section(
-                title = "Tokens and endpoints",
-                subtitle = "All optional, all stay on this device",
+                title = stringResource(R.string.settings_tokens_and_endpoints),
+                subtitle = stringResource(R.string.settings_all_optional_all_stay_on_this_device),
                 open = openSection == "tokens",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "tokens") null else "tokens" },
             ) {
                 Hint(
-                    "All optional. Every field here stays on this device, and each provider " +
-                        "simply stays quiet without what it needs.",
+                    stringResource(R.string.settings_all_optional_every_field_here_stays_on_this_devi),
                 )
                 Help(
-                    "These are your own credentials, read from a browser session you are already " +
-                        "signed in to — there is no app account and no server in between. They " +
-                        "are stored in this app's private preferences and sent only to the " +
-                        "service they belong to.",
+                    stringResource(R.string.settings_these_are_your_own_credentials_read_from_a_brows),
                 )
 
                 SecretField(
-                    label = "Spotify sp_dc cookie",
-                    help = "No longer enough on its own. Turning the cookie into an access " +
-                        "token meant an endpoint Spotify has closed — one address is blocked " +
-                        "outright, the other refuses every caller with or without a cookie. " +
-                        "The endpoints that token opened are still there, though, so paste " +
-                        "the token itself under Developer instead. This field stays in case " +
-                        "the mint reopens.",
+                    label = stringResource(R.string.settings_spotify_sp_dc_cookie),
+                    help = stringResource(R.string.settings_no_longer_enough_on_its_own_turning_the_cookie_i),
                     value = settings.spDcCookie.orEmpty(),
                     accent = accent,
                     onChange = { store.updateSpDcCookie(it) },
                 )
 
                 SecretField(
-                    label = "Apple Music developer token",
-                    help = "A JWT, valid for months rather than an hour — which makes it the " +
-                        "token worth having. Open music.apple.com, developer tools, Network " +
-                        "tab, and copy the Authorization header off any request to " +
-                        "amp-api.music.apple.com — the whole header or just the token, either " +
-                        "works.\n\nOn its own this gets the artist image " +
-                        "and the full-size cover art, no subscription needed. Syllable-level " +
-                        "lyrics need the music user token below as well, and a subscription.",
+                    label = stringResource(R.string.settings_apple_music_developer_token),
+                    help = stringResource(R.string.settings_a_jwt_valid_for_months_rather_than_an_hour_which),
                     value = settings.appleDeveloperToken.orEmpty(),
                     accent = accent,
                     onChange = { store.updateAppleDeveloperToken(it) },
                 )
 
                 SecretField(
-                    label = "Apple Music user token",
-                    help = "The `media-user-token` cookie from a signed-in music.apple.com " +
-                        "session. Needs an active subscription.",
+                    label = stringResource(R.string.settings_apple_music_user_token),
+                    help = stringResource(R.string.settings_the_media_user_token_cookie_from_a_signed_in_mus),
                     value = settings.appleMusicUserToken.orEmpty(),
                     accent = accent,
                     onChange = { store.updateAppleMusicUserToken(it) },
                 )
 
                 SecretField(
-                    label = "Apple Music storefront",
-                    help = "Two-letter country code for the catalogue to search, e.g. us, gb, jp.",
+                    label = stringResource(R.string.settings_apple_music_storefront),
+                    help = stringResource(R.string.settings_two_letter_country_code_for_the_catalogue_to_sea),
                     value = settings.appleStorefront,
                     accent = accent,
                     onChange = { store.updateAppleStorefront(it) },
                 )
 
                 SecretField(
-                    label = "Musixmatch user token",
-                    help = "Optional — the app mints an anonymous token for itself, which is " +
-                        "rate-limited per network. A signed-in one is not. The desktop app " +
-                        "this used to come from is discontinued, so take it from the site: " +
-                        "sign in at musixmatch.com, then copy the whole musixmatchUserToken " +
-                        "cookie from your browser's developer tools and paste it here. The " +
-                        "cookie holds one token per Musixmatch client and only some of them " +
-                        "work, so paste the whole thing rather than picking one — it finds the " +
-                        "right one. A bare token works too if you know which client it belongs " +
-                        "to. Anything this endpoint rejects is ignored rather than allowed to " +
-                        "break the source.",
+                    label = stringResource(R.string.settings_musixmatch_user_token),
+                    help = stringResource(R.string.settings_optional_the_app_mints_an_anonymous_token_for_it),
                     value = settings.musixmatchUserToken.orEmpty(),
                     accent = accent,
                     onChange = { store.updateMusixmatchUserToken(it) },
                 )
 
                 SecretField(
-                    label = "AMLL TTML instance",
-                    help = "The community lyrics index. The default is the project's own server, " +
-                        "run by volunteers — if you use it heavily, run your own copy of " +
-                        "amll-ttml-api and point this at it.",
+                    label = stringResource(R.string.settings_amll_ttml_instance),
+                    help = stringResource(R.string.settings_the_community_lyrics_index_the_default_is_the_pr),
                     value = settings.amllBaseUrl,
                     accent = accent,
                     onChange = { store.updateAmllBaseUrl(it) },
                 )
 
                 SecretField(
-                    label = "LRCLIB instance",
-                    help = "Point at your own mirror if you run one.",
+                    label = stringResource(R.string.settings_lrclib_instance),
+                    help = stringResource(R.string.settings_point_at_your_own_mirror_if_you_run_one),
                     value = settings.lrcLibBaseUrl,
                     accent = accent,
                     onChange = { store.updateLrcLibBaseUrl(it) },
                 )
 
                 SecretField(
-                    label = "NetEase instance",
-                    help = "Point at a self-hosted NetEase API if the public one is blocked for you.",
+                    label = stringResource(R.string.settings_netease_instance),
+                    help = stringResource(R.string.settings_point_at_a_self_hosted_netease_api_if_the_public),
                     value = settings.neteaseBaseUrl,
                     accent = accent,
                     onChange = { store.updateNeteaseBaseUrl(it) },
                 )
 
                 SecretField(
-                    label = "NetEase cookie",
-                    help = "Optional. Raises the per-IP limits and unlocks some regional catalogues.",
+                    label = stringResource(R.string.settings_netease_cookie),
+                    help = stringResource(R.string.settings_optional_raises_the_per_ip_limits_and_unlocks_so),
                     value = settings.neteaseCookie.orEmpty(),
                     accent = accent,
                     onChange = { store.updateNeteaseCookie(it) },
@@ -1169,16 +1124,16 @@ fun SettingsSheet(
             }
 
             Section(
-                title = "This track",
-                subtitle = "Copy, import, look it up again",
+                title = stringResource(R.string.settings_this_track),
+                subtitle = stringResource(R.string.settings_copy_import_look_it_up_again),
                 open = openSection == "track",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "track") null else "track" },
             ) {
 
                 ActionRow(
-                    title = "Copy all the lyrics",
-                    subtitle = "Puts the whole song on the clipboard",
+                    title = stringResource(R.string.settings_copy_all_the_lyrics),
+                    subtitle = stringResource(R.string.settings_puts_the_whole_song_on_the_clipboard),
                     accent = accent,
                     onClick = onCopyAll,
                 )
@@ -1191,8 +1146,8 @@ fun SettingsSheet(
                 }
                 if (hasLocal) {
                     ActionRow(
-                        title = "Forget the imported lyrics file",
-                        subtitle = "Goes back to looking this track up online",
+                        title = stringResource(R.string.settings_forget_the_imported_lyrics_file),
+                        subtitle = stringResource(R.string.settings_goes_back_to_looking_this_track_up_online),
                         accent = accent,
                         onClick = {
                             scope.launch {
@@ -1204,8 +1159,8 @@ fun SettingsSheet(
                 }
 
                 ActionRow(
-                    title = "Look this track up again",
-                    subtitle = "Drops it from the cache and asks every source afresh",
+                    title = stringResource(R.string.settings_look_this_track_up_again),
+                    subtitle = stringResource(R.string.settings_drops_it_from_the_cache_and_asks_every_source_af),
                     accent = accent,
                     onClick = { container.lyrics.retry() },
                 )
@@ -1215,8 +1170,8 @@ fun SettingsSheet(
             }
 
             Section(
-                title = "Battery",
-                subtitle = "The screen, standing down, battery saver",
+                title = stringResource(R.string.settings_battery),
+                subtitle = stringResource(R.string.settings_the_screen_standing_down_battery_saver),
                 open = openSection == "battery",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "battery") null else "battery" },
@@ -1225,37 +1180,31 @@ fun SettingsSheet(
                 // thing it affects is configured. Splitting them across the sections they belong to
                 // — the screen under View, the window's background under Popup — meant nobody could
                 // see what the app was costing them, or find the three switches that change it.
-                Hint("Every setting that trades something for battery, in one place.")
+                Hint(stringResource(R.string.settings_every_setting_that_trades_something_for_battery))
 
                 ToggleRow(
-                    title = "Keep the screen on while playing",
-                    subtitle = "Only while something is playing — it times out normally otherwise",
+                    title = stringResource(R.string.settings_keep_the_screen_on_while_playing),
+                    subtitle = stringResource(R.string.settings_only_while_something_is_playing_it_times_out_nor),
                     checked = settings.keepScreenOn,
                     accent = accent,
                     onCheckedChange = { store.setKeepScreenOn(it) },
                 )
                 Help(
-                    "The screen is the most expensive thing on a phone by a wide margin, so this " +
-                        "is tied to playback rather than to the app being open. Pausing, or " +
-                        "reaching the end of a track, lets it time out as usual — and a player you " +
-                        "have switched off under Players to follow does not count as playing.",
+                    stringResource(R.string.settings_the_screen_is_the_most_expensive_thing_on_a_phon),
                 )
 
                 ToggleRow(
-                    title = "Hold the background still in the floating window",
-                    subtitle = "Living stops on a frame instead of moving",
+                    title = stringResource(R.string.settings_hold_the_background_still_in_the_floating_window),
+                    subtitle = stringResource(R.string.settings_living_stops_on_a_frame_instead_of_moving),
                     checked = settings.popupStillBackground,
                     accent = accent,
                     onCheckedChange = { store.setPopupStillBackground(it) },
                 )
                 Help(
-                    "The window is what stays on screen over whatever else you are doing, " +
-                        "sometimes for an hour, and the drifting background is the most expensive " +
-                        "thing this app draws. Off keeps it moving in there too.",
+                    stringResource(R.string.settings_the_window_is_what_stays_on_screen_over_whatever),
                 )
                 Help(
-                    "Two things need no setting because they cost nothing: the drift stops on its " +
-                        "own whenever the music is paused, and so does a title too long to fit.",
+                    stringResource(R.string.settings_two_things_need_no_setting_because_they_cost_not),
                 )
 
                 Spacer(Modifier.height(6.dp))
@@ -1263,8 +1212,8 @@ fun SettingsSheet(
                 Spacer(Modifier.height(10.dp))
 
                 ChipGroup(
-                    label = "Stop watching after",
-                    options = BACKGROUND_TIMEOUTS,
+                    label = stringResource(R.string.settings_stop_watching_after),
+                    options = BACKGROUND_TIMEOUTS.map { (minutes, labelRes) -> minutes to stringResource(labelRes) },
                     selected = settings.backgroundTimeoutMinutes,
                     accent = accent,
                     perRow = 4,
@@ -1272,27 +1221,12 @@ fun SettingsSheet(
                 )
                 Hint(
                     when (val minutes = settings.backgroundTimeoutMinutes) {
-                        0 -> "Never stops. Watches for a track until you turn the permission off."
-                        else -> "After $minutes minutes with nothing playing and the app off " +
-                            "screen, it lets go and stops using power."
+                        0 -> stringResource(R.string.settings_never_stops_watches_for_a_track_until_you_turn_t)
+                        else -> stringResource(R.string.settings_after_minutes_with_nothing_playing_and_the_app_o, minutes)
                     },
                 )
                 Help(
-                    "Reading what is playing needs notification access, and an enabled " +
-                        "notification listener is a bound service: Android keeps this app's " +
-                        "process resident and hands it every notification on the device — a " +
-                        "wake-up for each one, from every app, whether or not any music is " +
-                        "playing. That is why closing the app from the recent-apps screen did not " +
-                        "appear to close it, and why it could warm the phone hours " +
-                        "later.\n\nWhen the timer runs out the app gives that binding back. " +
-                        "Nothing then keeps the process alive, so the system reclaims it, and " +
-                        "there is nothing left running to wake up.\n\nThe cost, plainly: while " +
-                        "stopped it cannot notice a track starting, so lyrics will not be waiting " +
-                        "for you. Opening the app starts it watching again immediately. Music " +
-                        "already playing always keeps it awake, however long the " +
-                        "timer.\n\n\"Playing\" means a player you follow. One switched off under " +
-                        "Players to follow is not watched and does not hold this open — a video " +
-                        "left running for an hour cannot keep the app awake.",
+                    stringResource(R.string.settings_reading_what_is_playing_needs_notification_acces),
                 )
 
                 Spacer(Modifier.height(6.dp))
@@ -1301,21 +1235,18 @@ fun SettingsSheet(
 
                 val saving by container.saving.collectAsStateWithLifecycle()
                 ToggleRow(
-                    title = "Follow the system battery saver",
+                    title = stringResource(R.string.settings_follow_the_system_battery_saver),
                     subtitle = if (saving.any) {
-                        "Battery saver is on now, and these are in force"
+                        stringResource(R.string.settings_battery_saver_is_on_now_and_these_are_in_force)
                     } else {
-                        "Ease off while the phone is in battery saver"
+                        stringResource(R.string.settings_ease_off_while_the_phone_is_in_battery_saver)
                     },
                     checked = settings.followBatterySaver,
                     accent = accent,
                     onCheckedChange = { store.setFollowBatterySaver(it) },
                 )
                 Help(
-                    "Nothing here changes anything until the phone puts itself in battery saver — " +
-                        "and then only what you have ticked. Android holds its own animations still " +
-                        "in that mode for the same reason; an app meant to be left on screen has " +
-                        "more to give back than most.",
+                    stringResource(R.string.settings_nothing_here_changes_anything_until_the_phone_pu),
                 )
 
                 // Each measure separately, because each one costs something different. Shown only
@@ -1323,81 +1254,70 @@ fun SettingsSheet(
                 AnimatedVisibility(visible = settings.followBatterySaver) {
                     Column(Modifier.fillMaxWidth()) {
                         ToggleRow(
-                            title = "Hold the background still",
-                            subtitle = "The drifting cover stops moving",
+                            title = stringResource(R.string.settings_hold_the_background_still),
+                            subtitle = stringResource(R.string.settings_the_drifting_cover_stops_moving),
                             checked = settings.saverStillBackground,
                             accent = accent,
                             onCheckedChange = { store.setSaverStillBackground(it) },
                         )
                         Help(
-                            "The biggest saving of the three by a distance, and the least missed: " +
-                                "the moving background is redrawn thirty times a second, and a " +
-                                "still one is drawn once.",
+                            stringResource(R.string.settings_the_biggest_saving_of_the_three_by_a_distance_an),
                         )
                         AnimatedVisibility(visible = settings.saverStillBackground) {
                             Column(Modifier.fillMaxWidth()) {
                                 ToggleRow(
-                                    title = "Freeze Living on a frame",
-                                    subtitle = "Off shows the still cover art instead",
+                                    title = stringResource(R.string.settings_freeze_living_on_a_frame),
+                                    subtitle = stringResource(R.string.settings_off_shows_the_still_cover_art_instead),
                                     checked = settings.saverFreezeLiving,
                                     accent = accent,
                                     onCheckedChange = { store.setSaverFreezeLiving(it) },
                                 )
                                 Help(
-                                    "Either way it is drawn once, so this is only about the look. " +
-                                        "Living (classic) always shows the cover, having no " +
-                                        "still frame, and the floating window always freezes.",
+                                    stringResource(R.string.settings_either_way_it_is_drawn_once_so_this_is_only_abou),
                                 )
                                 AnimatedVisibility(visible = settings.canvasMode != CanvasMode.OFF) {
                                     Column(Modifier.fillMaxWidth()) {
                                         ToggleRow(
-                                            title = "Show a Canvas as its still",
-                                            subtitle = "Off shows the background style instead",
+                                            title = stringResource(R.string.settings_show_a_canvas_as_its_still),
+                                            subtitle = stringResource(R.string.settings_off_shows_the_background_style_instead),
                                             checked = settings.saverStillCanvas,
                                             accent = accent,
                                             onCheckedChange = { store.setSaverStillCanvas(it) },
                                         )
                                         Help(
-                                            "A still is drawn once, like the rest of the background, " +
-                                                "and costs a few dozen kilobytes a track to fetch.",
+                                            stringResource(R.string.settings_a_still_is_drawn_once_like_the_rest_of_the_backg),
                                         )
                                     }
                                 }
                             }
                         }
                         ToggleRow(
-                            title = "Let the screen time out",
-                            subtitle = "Even while the music is playing",
+                            title = stringResource(R.string.settings_let_the_screen_time_out),
+                            subtitle = stringResource(R.string.settings_even_while_the_music_is_playing),
                             checked = settings.saverReleaseScreen,
                             accent = accent,
                             onCheckedChange = { store.setSaverReleaseScreen(it) },
                         )
                         Help(
-                            "Off by default, alone among these. The screen is by far the most " +
-                                "expensive thing on a phone, so this saves the most — and it is " +
-                                "also the one that stops the app doing its job, since the lyrics " +
-                                "go dark in the middle of the song. Only worth it if you would " +
-                                "rather have the battery.",
+                            stringResource(R.string.settings_off_by_default_alone_among_these_the_screen_is_b),
                         )
                         ToggleRow(
-                            title = "Skip the early next-track lookup",
-                            subtitle = "Fetch lyrics when the track starts instead",
+                            title = stringResource(R.string.settings_skip_the_early_next_track_lookup),
+                            subtitle = stringResource(R.string.settings_fetch_lyrics_when_the_track_starts_instead),
                             checked = settings.saverSkipPrefetch,
                             accent = accent,
                             onCheckedChange = { store.setSaverSkipPrefetch(it) },
                         )
                         Help(
-                            "Costs one request and a little parsing per track, and only does " +
-                                "anything at all for a player that publishes its queue. The lyrics " +
-                                "still arrive when the track does; they are just not already there.",
+                            stringResource(R.string.settings_costs_one_request_and_a_little_parsing_per_track),
                         )
                     }
                 }
             }
 
             Section(
-                title = "Storage and backup",
-                subtitle = "The lyrics cache, and your settings in a file",
+                title = stringResource(R.string.settings_storage_and_backup),
+                subtitle = stringResource(R.string.settings_the_lyrics_cache_and_your_settings_in_a_file),
                 open = openSection == "storage",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "storage") null else "storage" },
@@ -1408,11 +1328,11 @@ fun SettingsSheet(
                     value = container.lyricsCacheSizeBytes()
                 }
                 ActionRow(
-                    title = if (cacheCleared) "Cache cleared" else "Clear the lyrics cache",
+                    title = if (cacheCleared) stringResource(R.string.settings_cache_cleared) else stringResource(R.string.settings_clear_the_lyrics_cache),
                     subtitle = when {
-                        cacheCleared -> "Forces a fresh lookup for every track"
-                        cacheSize < 0 -> "Forces a fresh lookup for every track"
-                        else -> "%.1f MB stored · forces a fresh lookup for every track"
+                        cacheCleared -> stringResource(R.string.settings_forces_a_fresh_lookup_for_every_track)
+                        cacheSize < 0 -> stringResource(R.string.settings_forces_a_fresh_lookup_for_every_track)
+                        else -> stringResource(R.string.settings_1f_mb_stored_forces_a_fresh_lookup_for_every_tra)
                             .format(cacheSize / 1_048_576f)
                     },
                     accent = accent,
@@ -1432,8 +1352,8 @@ fun SettingsSheet(
             }
 
             Section(
-                title = "About",
-                subtitle = "Version, updates, credits",
+                title = stringResource(R.string.settings_about),
+                subtitle = stringResource(R.string.settings_version_updates_credits),
                 open = openSection == "about",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "about") null else "about" },
@@ -1451,15 +1371,13 @@ fun SettingsSheet(
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "Melisma",
+                            stringResource(R.string.settings_melisma),
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            "Version ${updater.currentVersion} " +
-                                "(build ${updater.currentVersionCode})" +
-                                if (!updater.canUpdateInPlace) " · debug" else "",
+                            stringResource(R.string.settings_version_build, updater.currentVersion, updater.currentVersionCode, if (!updater.canUpdateInPlace) " · debug" else ""),
                             color = Color.White.copy(alpha = 0.5f),
                             fontSize = 12.sp,
                         )
@@ -1467,8 +1385,7 @@ fun SettingsSheet(
                 }
 
                 Text(
-                    "Word-by-word lyrics for whatever your phone is playing. A port of " +
-                        "Spicy Lyrics' renderer to Android, under the AGPL-3.0.",
+                    stringResource(R.string.settings_word_by_word_lyrics_for_whatever_your_phone_is_p),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 13.sp,
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -1476,43 +1393,38 @@ fun SettingsSheet(
 
                 // ---- updates ------------------------------------------------
                 ToggleRow(
-                    title = "Check for updates automatically",
-                    subtitle = "On launch, at most every few hours",
+                    title = stringResource(R.string.settings_check_for_updates_automatically),
+                    subtitle = stringResource(R.string.settings_on_launch_at_most_every_few_hours),
                     checked = settings.autoUpdateCheck,
                     accent = accent,
                     onCheckedChange = { store.setAutoUpdateCheck(it) },
                 )
                 Help(
-                    "There is no app store here, so nothing else will ever mention that a fix " +
-                        "exists. This asks GitHub what the newest release is — one small " +
-                        "request, no account — and downloads nothing until you say so. " +
-                        "Installing goes through Android's own confirmation screen, and " +
-                        "Android refuses an APK that is not signed with the same key as the " +
-                        "copy you already have.",
+                    stringResource(R.string.settings_there_is_no_app_store_here_so_nothing_else_will),
                 )
 
                 val updateState by updater.state.collectAsStateWithLifecycle()
                 ActionRow(
                     title = when (val state = updateState) {
-                        is Updater.State.Checking -> "Checking…"
-                        is Updater.State.Available -> "Update to ${state.release.versionName}"
+                        is Updater.State.Checking -> stringResource(R.string.settings_checking)
+                        is Updater.State.Available -> stringResource(R.string.settings_update_to, state.release.versionName)
                         is Updater.State.Downloading -> when {
-                            state.fraction < 0f -> "Downloading…"
-                            else -> "Downloading — ${(state.fraction * 100).toInt()}%"
+                            state.fraction < 0f -> stringResource(R.string.settings_downloading_unknown)
+                            else -> stringResource(R.string.settings_downloading, (state.fraction * 100).toInt())
                         }
-                        is Updater.State.ReadyToInstall -> "Ready to install"
-                        is Updater.State.UpToDate -> "You are up to date"
-                        is Updater.State.Failed -> "Check for updates"
-                        Updater.State.Idle -> "Check for updates"
+                        is Updater.State.ReadyToInstall -> stringResource(R.string.settings_ready_to_install)
+                        is Updater.State.UpToDate -> stringResource(R.string.settings_you_are_up_to_date)
+                        is Updater.State.Failed -> stringResource(R.string.settings_check_for_updates)
+                        Updater.State.Idle -> stringResource(R.string.settings_check_for_updates)
                     },
                     subtitle = when (val state = updateState) {
                         is Updater.State.Available ->
-                            "You have ${updater.currentVersion} · tap to download and install"
+                            stringResource(R.string.settings_you_have_tap_to_download_and_install, updater.currentVersion)
                         is Updater.State.ReadyToInstall ->
-                            "Downloaded · tap to install"
+                            stringResource(R.string.settings_downloaded_tap_to_install)
                         is Updater.State.Failed -> state.message
-                        is Updater.State.UpToDate -> "${updater.currentVersion} is the newest release"
-                        else -> "Asks GitHub for the newest release"
+                        is Updater.State.UpToDate -> stringResource(R.string.settings_is_the_newest_release, updater.currentVersion)
+                        else -> stringResource(R.string.settings_asks_github_for_the_newest_release)
                     },
                     accent = accent,
                     onClick = {
@@ -1536,8 +1448,7 @@ fun SettingsSheet(
 
                 if (!updater.canUpdateInPlace) {
                     Hint(
-                        "This is a debug build, which installs under a different name — a " +
-                            "release cannot replace it, so updates are not offered.",
+                        stringResource(R.string.settings_this_is_a_debug_build_which_installs_under_a_dif),
                     )
                 }
 
@@ -1545,11 +1456,11 @@ fun SettingsSheet(
                 // row about an app they do not have.
                 if (updater.shizukuPresent) {
                     ToggleRow(
-                        title = "Install updates through Shizuku",
+                        title = stringResource(R.string.settings_install_updates_through_shizuku),
                         subtitle = if (updater.shizukuGranted) {
-                            "Permission granted"
+                            stringResource(R.string.settings_permission_granted)
                         } else {
-                            "Needs permission from Shizuku"
+                            stringResource(R.string.settings_needs_permission_from_shizuku)
                         },
                         checked = settings.shizukuUpdates,
                         accent = accent,
@@ -1559,19 +1470,14 @@ fun SettingsSheet(
                         },
                     )
                     Help(
-                        "An update still needs a tap without this: Play Protect asks about " +
-                            "every APK it has not seen before. Shizuku holds an identity you " +
-                            "granted it yourself, and an install made with that identity is " +
-                            "not asked about — the same as installing from a computer. Shizuku " +
-                            "has to be running; if it is not, the update goes through Android's " +
-                            "installer as usual.",
+                        stringResource(R.string.settings_an_update_still_needs_a_tap_without_this_play_pr),
                     )
                 }
 
                 (updateState as? Updater.State.Available)?.let { available ->
                     ActionRow(
-                        title = "Skip ${available.release.versionName}",
-                        subtitle = "Stops asking until a later release appears",
+                        title = stringResource(R.string.settings_skip, available.release.versionName),
+                        subtitle = stringResource(R.string.settings_stops_asking_until_a_later_release_appears),
                         accent = accent,
                         onClick = { updater.skip(available.release) },
                     )
@@ -1579,15 +1485,15 @@ fun SettingsSheet(
 
                 // ---- links --------------------------------------------------
                 ActionRow(
-                    title = "Source code and releases",
+                    title = stringResource(R.string.settings_source_code_and_releases),
                     subtitle = UpdateChecker.REPOSITORY,
                     accent = accent,
                     onClick = { openUrl(context, UpdateChecker.RELEASES_URL) },
                 )
 
                 ActionRow(
-                    title = "Report a problem",
-                    subtitle = "Issues on GitHub",
+                    title = stringResource(R.string.settings_report_a_problem),
+                    subtitle = stringResource(R.string.settings_issues_on_github),
                     accent = accent,
                     onClick = {
                         openUrl(context, "https://github.com/${UpdateChecker.REPOSITORY}/issues")
@@ -1595,22 +1501,22 @@ fun SettingsSheet(
                 )
 
                 ActionRow(
-                    title = "Read the welcome guide again",
-                    subtitle = "What is required, what is optional, and what each token adds",
+                    title = stringResource(R.string.settings_read_the_welcome_guide_again),
+                    subtitle = stringResource(R.string.settings_what_is_required_what_is_optional_and_what_each),
                     accent = accent,
                     onClick = onShowWelcome,
                 )
 
                 ActionRow(
-                    title = "Credits and licences",
-                    subtitle = "Built on Spicy Lyrics, and who else made this possible",
+                    title = stringResource(R.string.settings_credits_and_licences),
+                    subtitle = stringResource(R.string.settings_built_on_spicy_lyrics_and_who_else_made_this_pos),
                     accent = accent,
                     onClick = { showCredits = true },
                 )
 
                 if (songWriters.isNotEmpty()) {
                     Text(
-                        text = "This track was written by ${songWriters.joinToString(", ")}",
+                        text = stringResource(R.string.settings_this_track_was_written_by, songWriters.joinToString(", ")),
                         color = Color.White.copy(alpha = 0.5f),
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 10.dp),
@@ -1619,40 +1525,28 @@ fun SettingsSheet(
             }
 
             Section(
-                title = "Developer",
-                subtitle = "For testing a server of your own",
+                title = stringResource(R.string.settings_developer),
+                subtitle = stringResource(R.string.settings_for_testing_a_server_of_your_own),
                 open = openSection == "developer",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "developer") null else "developer" },
             ) {
 
                 ToggleRow(
-                    title = "Developer options",
-                    subtitle = "For testing a lyrics server of your own",
+                    title = stringResource(R.string.settings_developer_options),
+                    subtitle = stringResource(R.string.settings_for_testing_a_lyrics_server_of_your_own),
                     checked = settings.developerMode,
                     accent = accent,
                     onCheckedChange = { store.setDeveloperMode(it) },
                 )
                 Help(
-                    "Nothing here is needed to use the app, and with this off none of it is " +
-                        "reachable — a server URL left in preferences stops being used the moment " +
-                        "the switch goes off, rather than quietly answering.",
+                    stringResource(R.string.settings_nothing_here_is_needed_to_use_the_app_and_with_t),
                 )
 
                 if (settings.developerMode) {
                     SecretField(
-                        label = "Spotify web access token",
-                        help = "Brings back Spotify's own lyrics, the artist image, the " +
-                            "full-size cover and the tempo — for about an hour, then it " +
-                            "expires and wants replacing.\n\nSpotify closed the endpoint that " +
-                            "turned a cookie into a token, but not the endpoints that token " +
-                            "opens: they answer \u201c401, bring a token\u201d rather than " +
-                            "\u201cno\u201d. So bring the token. Open open.spotify.com signed " +
-                            "in, developer tools, Network tab, play something, click any " +
-                            "request to spclient.wg.spotify.com, and copy the Authorization " +
-                            "header. Paste the whole thing — the \u201cBearer \u201d prefix is " +
-                            "stripped for you.\n\nIt is here rather than above because " +
-                            "something that lasts an hour is not a setting, it is an errand.",
+                        label = stringResource(R.string.settings_spotify_web_access_token),
+                        help = stringResource(R.string.settings_brings_back_spotify_s_own_lyrics_the_artist_imag),
                         value = settings.spotifyWebToken.orEmpty(),
                         accent = accent,
                         onChange = { store.updateSpotifyWebToken(it) },
@@ -1662,14 +1556,13 @@ fun SettingsSheet(
                         val spotify = container.providers.firstOrNull { it.id == "spotify" }
                         Hint(
                             spotify?.unavailableReason
-                                ?: "Accepted — Spotify's lyrics, artist image, cover and tempo " +
-                                    "are available until it expires.",
+                                ?: stringResource(R.string.settings_accepted_spotify_s_lyrics_artist_image_cover_and),
                         )
                     }
 
                     ToggleRow(
-                        title = "Renew that token automatically",
-                        subtitle = "Uses your sp_dc cookie in a hidden WebView. No server needed",
+                        title = stringResource(R.string.settings_renew_that_token_automatically),
+                        subtitle = stringResource(R.string.settings_uses_your_sp_dc_cookie_in_a_hidden_webview_no_se),
                         checked = settings.spotifyBrowserToken,
                         accent = accent,
                         onCheckedChange = { store.setSpotifyBrowserToken(it) },
@@ -1678,22 +1571,21 @@ fun SettingsSheet(
                     Hint(
                         when {
                             !settings.spotifyBrowserToken ->
-                                "Off, so the token above stays an errand — about one an hour."
+                                stringResource(R.string.settings_off_so_the_token_above_stays_an_errand_about_one)
                             settings.spDcCookie.isNullOrBlank() ->
-                                "On, but there is no sp_dc cookie to use. Add one above."
-                            harvest.running -> "Asking the player for a token…"
+                                stringResource(R.string.settings_on_but_there_is_no_sp_dc_cookie_to_use_add_one_a)
+                            harvest.running -> stringResource(R.string.settings_asking_the_player_for_a_token)
                             harvest.detail != null -> harvest.detail!!
                             else ->
-                                "On. Renew now to check the cookie works, or wait for the next " +
-                                    "time Spotify is asked."
+                                stringResource(R.string.settings_on_renew_now_to_check_the_cookie_works_or_wait_f)
                         },
                     )
 
                     if (settings.spotifyBrowserToken && !settings.spDcCookie.isNullOrBlank()) {
                         val scope = rememberCoroutineScope()
                         ActionRow(
-                            title = if (harvest.running) "Renewing…" else "Renew now",
-                            subtitle = "Loads the player and reads the token it is given",
+                            title = if (harvest.running) stringResource(R.string.settings_renewing) else stringResource(R.string.settings_renew_now),
+                            subtitle = stringResource(R.string.settings_loads_the_player_and_reads_the_token_it_is_given),
                             accent = accent,
                             onClick = {
                                 if (!harvest.running) {
@@ -1720,18 +1612,14 @@ fun SettingsSheet(
                             }
                             val countdown = remaining?.let { left ->
                                 when {
-                                    left <= 0L -> "\n\nExpired — renew for another."
-                                    left < 60_000L -> "\n\nExpires in under a minute."
-                                    else -> "\n\nExpires in ${left / 60_000} min."
+                                    left <= 0L -> stringResource(R.string.settings_expired_renew_for_another)
+                                    left < 60_000L -> stringResource(R.string.settings_expires_in_under_a_minute)
+                                    else -> stringResource(R.string.settings_expires_in_min, left / 60_000)
                                 }
                             }
                             SecretField(
-                                label = "The token it fetched",
-                                help = "Read-only, and kept in memory rather than in the box above " +
-                                    "— a token pasted there is treated as your choice and is never " +
-                                    "replaced, which would stop the renewal that just produced " +
-                                    "this one. Copy it if you want it elsewhere." +
-                                    (countdown ?: ""),
+                                label = stringResource(R.string.settings_the_token_it_fetched),
+                                help = stringResource(R.string.settings_read_only_and_kept_in_memory_rather_than_in_the, (countdown ?: "")),
                                 value = token,
                                 accent = accent,
                                 onChange = {},
@@ -1740,47 +1628,28 @@ fun SettingsSheet(
                         }
                     }
                     Help(
-                        "Spotify closed the endpoint that traded a cookie for a token, so the " +
-                            "only thing that still mints one is the player itself — and " +
-                            "Android ships a Chromium to run it in. This loads open.spotify.com " +
-                            "in a WebView with your cookie and reads the token the player is " +
-                            "given. Nothing is drawn on screen, and the view is destroyed as soon " +
-                            "as a token arrives.\n\nWhich is a different thing from reproducing " +
-                            "the signature the player signs that request with. That would be " +
-                            "defeating a check with a lifted secret, and this app does not do it. " +
-                            "Here the player signs its own request, as itself, with your cookie — " +
-                            "the token is one your own browser would have received.\n\nIt is " +
-                            "behind these developer options because it is still automated access " +
-                            "to a service whose terms discourage it. That is a call for whoever " +
-                            "runs this build, not something to ship switched on.",
+                        stringResource(R.string.settings_spotify_closed_the_endpoint_that_traded_a_cookie),
                     )
 
                     SecretField(
-                        label = "Cache server URL",
-                        help = "A server of your own that sits in front of the free sources and " +
-                            "remembers what it fetched. Leave empty to not use one. Sent as " +
-                            "GET {url}/v1/lyrics?title=&artist=&album=&durationMs=&spotifyId= — " +
-                            "TTML, LRC, or JSON wrapping either is accepted.",
+                        label = stringResource(R.string.settings_cache_server_url),
+                        help = stringResource(R.string.settings_a_server_of_your_own_that_sits_in_front_of_the_f),
                         value = settings.cacheServerUrl.orEmpty(),
                         accent = accent,
                         onChange = { store.updateCacheServerUrl(it) },
                     )
 
                     SecretField(
-                        label = "Cache server key",
-                        help = "Only needed if the server is not on your own network. A server " +
-                            "holding an Apple Music token should not answer strangers, so one " +
-                            "reachable from further away will want a key — it prints one when it " +
-                            "starts. Leave empty for a server on your Wi-Fi, which should let a " +
-                            "lookup through without it.",
+                        label = stringResource(R.string.settings_cache_server_key),
+                        help = stringResource(R.string.settings_only_needed_if_the_server_is_not_on_your_own_net),
                         value = settings.cacheServerKey.orEmpty(),
                         accent = accent,
                         onChange = { store.updateCacheServerKey(it) },
                     )
 
                     ChipGroup(
-                        label = "How to use it",
-                        options = CacheServerMode.entries.map { it to it.label },
+                        label = stringResource(R.string.settings_how_to_use_it),
+                        options = CacheServerMode.entries.map { it to stringResource(it.labelRes) },
                         selected = settings.cacheServerMode,
                         accent = accent,
                         onSelect = { store.setCacheServerMode(it) },
@@ -1788,53 +1657,30 @@ fun SettingsSheet(
                     Hint(
                         when (settings.cacheServerMode) {
                             CacheServerMode.PARALLEL ->
-                                "Asked alongside every source you have enabled, and ranked among " +
-                                    "them in Where lyrics come from. The best answer still wins, " +
-                                    "so the app keeps working whatever the server does — and the " +
-                                    "server sees every track you play."
+                                stringResource(R.string.settings_asked_alongside_every_source_you_have_enabled_an)
                             CacheServerMode.ONLY ->
-                                "The only source asked, whatever its ranking says — there is " +
-                                    "nothing else to rank it against. Nothing falls back, so a " +
-                                    "track with no lyrics means the server could not answer it."
+                                stringResource(R.string.settings_the_only_source_asked_whatever_its_ranking_says)
                         },
                     )
                     Help(
-                        "Two modes because they answer different questions. Alongside is for " +
-                            "filling the cache while the server is still being written: real " +
-                            "traffic reaches it, and a gap in it costs you nothing because the " +
-                            "ordinary sources are answering too. Only is for testing the server " +
-                            "itself — when nothing else can answer, what it is missing becomes " +
-                            "visible. Your own imported files still win in either mode, and " +
-                            "results are still cached on the phone, so use \u201cLook this track " +
-                            "up again\u201d above when you want to force a fresh request.",
+                        stringResource(R.string.settings_two_modes_because_they_answer_different_question),
                     )
 
                     ToggleRow(
-                        title = "Ask the server for artwork, tempo and Canvas",
-                        subtitle = "Not just the words",
+                        title = stringResource(R.string.settings_ask_the_server_for_artwork_tempo_and_canvas),
+                        subtitle = stringResource(R.string.settings_not_just_the_words),
                         checked = settings.cacheServerExtras,
                         accent = accent,
                         onCheckedChange = { store.setCacheServerExtras(it) },
                     )
                     Help(
-                        "The reason to want this: a Spotify token lasts an hour and an Apple one " +
-                            "a few months, but a cover URL, an ISRC, a tempo and a Canvas " +
-                            "address, once known, last far longer. Your server collects them " +
-                            "for itself every time it looks a track up, so the tokens live on " +
-                            "that one machine rather than on every phone — and this asks for " +
-                            "what it has.\n\nNothing is sent from here but the track's title " +
-                            "and artist. The phone has nothing to contribute and no credential " +
-                            "to hand over; asking is all it does. Tempo comes from Spotify " +
-                            "alone, so a server that holds it is the only way to have it " +
-                            "without a live token of your own. A Canvas video is still " +
-                            "downloaded from Spotify's own servers; only its address comes " +
-                            "from yours.",
+                        stringResource(R.string.settings_the_reason_to_want_this_a_spotify_token_lasts_an),
                     )
                     AnimatedVisibility(visible = settings.cacheServerExtras) {
                         Column(Modifier.fillMaxWidth()) {
                             ChipGroup(
-                                label = "Where the extras come from",
-                                options = ExtrasServerMode.entries.map { it to it.label },
+                                label = stringResource(R.string.settings_where_the_extras_come_from),
+                                options = ExtrasServerMode.entries.map { it to stringResource(it.labelRes) },
                                 selected = settings.cacheServerExtrasMode,
                                 accent = accent,
                                 onSelect = { store.setCacheServerExtrasMode(it) },
@@ -1842,25 +1688,19 @@ fun SettingsSheet(
                             Hint(
                                 when (settings.cacheServerExtrasMode) {
                                     ExtrasServerMode.FALLBACK ->
-                                        "Asked when no token on this phone can answer — a live " +
-                                            "token is about the track playing now, where the " +
-                                            "server is a record of one that matched before."
+                                        stringResource(R.string.settings_asked_when_no_token_on_this_phone_can_answer_a_l)
                                     ExtrasServerMode.ONLY ->
-                                        "Artwork, tempo and Canvas come from the server alone, " +
-                                            "whatever tokens this phone holds. A track without " +
-                                            "them means the server does not have them."
+                                        stringResource(R.string.settings_artwork_tempo_and_canvas_come_from_the_server_al)
                                 },
                             )
                             Help(
-                                "Separate from How to use it above, which covers the lyrics " +
-                                    "only. What the phone already remembers about a track is " +
-                                    "still used, as its cached lyrics are.",
+                                stringResource(R.string.settings_separate_from_how_to_use_it_above_which_covers_t),
                             )
                         }
                     }
 
                     if (settings.cacheServerUrl.isNullOrBlank()) {
-                        Hint("No URL set, so the cache server is not being asked.")
+                        Hint(stringResource(R.string.settings_no_url_set_so_the_cache_server_is_not_being_aske))
                     }
 
                     // ---- what each source actually said --------------------------
@@ -1868,8 +1708,8 @@ fun SettingsSheet(
                     var probing by remember { mutableStateOf(false) }
 
                     ActionRow(
-                        title = if (probing) "Asking every source…" else "Test the sources",
-                        subtitle = "Asks each one about this track and reports what came back",
+                        title = if (probing) stringResource(R.string.settings_asking_every_source) else stringResource(R.string.settings_test_the_sources),
+                        subtitle = stringResource(R.string.settings_asks_each_one_about_this_track_and_reports_what),
                         accent = accent,
                         onClick = {
                             if (!probing) {
@@ -1884,11 +1724,7 @@ fun SettingsSheet(
                     // Under its own button, so it cannot be mistaken for the server's.
                     probe?.forEach { report -> ProbeRow(report.name, report.outcome, working = false) }
                     Help(
-                        "A source that is switched off, one that cannot reach its endpoint, and " +
-                            "one that reached it and found nothing all look identical from the " +
-                            "lyrics screen — which makes \u201conly some of them work\u201d " +
-                            "impossible to act on. This asks each one directly, ignoring the " +
-                            "cache, and prints what it said.",
+                        stringResource(R.string.settings_a_source_that_is_switched_off_one_that_cannot_re),
                     )
 
                     // ---- and what the server says about its own ------------------
@@ -1897,8 +1733,8 @@ fun SettingsSheet(
                     var serverFailed by remember { mutableStateOf(false) }
 
                     ActionRow(
-                        title = if (serverProbing) "Asking the server…" else "Test the server",
-                        subtitle = "Asks your server which of its own sources and tokens work",
+                        title = if (serverProbing) stringResource(R.string.settings_asking_the_server) else stringResource(R.string.settings_test_the_server),
+                        subtitle = stringResource(R.string.settings_asks_your_server_which_of_its_own_sources_and_to),
                         accent = accent,
                         onClick = {
                             if (!serverProbing) {
@@ -1917,8 +1753,7 @@ fun SettingsSheet(
                     )
                     if (serverFailed) {
                         Hint(
-                            "No answer. Check the URL and, if the server is not on this network, " +
-                                "the key.",
+                            stringResource(R.string.settings_no_answer_check_the_url_and_if_the_server_is_not),
                         )
                     }
                     serverProbe?.forEach { source ->
@@ -1933,12 +1768,7 @@ fun SettingsSheet(
                         )
                     }
                     Help(
-                        "The test above cannot answer this one. Pointing the app at a server puts " +
-                            "every source behind one hop, and \u201cthe server returned no " +
-                            "lyrics\u201d covers a source switched off, a token that expired last " +
-                            "week, and a track nobody has transcribed — which need telling apart. " +
-                            "This asks the server to test each of its own sources and report back. " +
-                            "No token comes back, only whether one works.",
+                        stringResource(R.string.settings_the_test_above_cannot_answer_this_one_pointing_t),
                     )
 
                     // ---- what each player tells Android --------------------------
@@ -1946,8 +1776,8 @@ fun SettingsSheet(
                     val clipboard = LocalClipboard.current
 
                     ActionRow(
-                        title = "What players publish",
-                        subtitle = "Everything each media session on the phone says about what it is playing",
+                        title = stringResource(R.string.settings_what_players_publish),
+                        subtitle = stringResource(R.string.settings_everything_each_media_session_on_the_phone_says),
                         accent = accent,
                         onClick = {
                             scope.launch { sessionReport = container.media.describeSessions() }
@@ -1968,26 +1798,24 @@ fun SettingsSheet(
                                     .padding(10.dp),
                             )
                         }
+                        val mediaSessionsLabel = stringResource(R.string.settings_media_sessions)
+                        val copiedMessage = stringResource(R.string.settings_copied)
                         ActionRow(
-                            title = "Copy the report",
-                            subtitle = "Read it before posting it anywhere: a player can put anything in its session",
+                            title = stringResource(R.string.settings_copy_the_report),
+                            subtitle = stringResource(R.string.settings_read_it_before_posting_it_anywhere_a_player_can),
                             accent = accent,
                             onClick = {
                                 scope.launch {
                                     clipboard.setClipEntry(
-                                        ClipEntry(android.content.ClipData.newPlainText("Media sessions", report)),
+                                        ClipEntry(android.content.ClipData.newPlainText(mediaSessionsLabel, report)),
                                     )
-                                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
                                 }
                             },
                         )
                     }
                     Help(
-                        "How exactly a track can be looked up depends on what its player publishes: " +
-                            "Spotify names the track by its own id, most players give only a title " +
-                            "and an artist. This lists every session on the phone with all of it, " +
-                            "and says which one the lyrics follow and why the others are passed " +
-                            "over. Nothing is sent anywhere.",
+                        stringResource(R.string.settings_how_exactly_a_track_can_be_looked_up_depends_on),
                     )
                 }
             }
@@ -2024,107 +1852,96 @@ private fun CreditsPanel(accent: Color, onBack: () -> Unit) {
         ) {
             Icon(
                 AppIcons.Close,
-                contentDescription = "Back to settings",
+                contentDescription = stringResource(R.string.settings_back_to_settings),
                 tint = Color.White.copy(alpha = 0.75f),
                 modifier = Modifier.size(17.dp),
             )
         }
         Spacer(Modifier.width(12.dp))
-        Text("Credits and licences", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.settings_credits_and_licences), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
     }
 
     Credit(
-        title = "Spicy Lyrics — Spikerko",
-        body = "This app is a port of Spicy Lyrics: its look, its animation curves, its " +
-            "lyric model and its TTML dialect. Spicy Lyrics is licensed AGPL-3.0, so " +
-            "Melisma is too.",
+        title = stringResource(R.string.settings_spicy_lyrics_spikerko),
+        body = stringResource(R.string.settings_this_app_is_a_port_of_spicy_lyrics_its_look_its),
         link = "github.com/Spikerko/spicy-lyrics",
         accent = accent,
     )
     Credit(
         title = "lrc.red",
-        body = "Apple Music's lyrics by ISRC, free and without a token. Its terms ask that its " +
-            "data be credited and linked wherever it is shown; the source line under the lyrics " +
-            "is that credit.",
+        body = stringResource(R.string.settings_apple_music_s_lyrics_by_isrc_free_and_without_a),
         link = "lrc.red",
         accent = accent,
     )
     Credit(
-        title = "spr — Fraktality (MIT)",
-        body = "The analytic spring that drives every scale, lift and glow in the renderer.",
+        title = stringResource(R.string.settings_spr_fraktality_mit),
+        body = stringResource(R.string.settings_the_analytic_spring_that_drives_every_scale_lift),
         link = "github.com/Fraktality/spr",
         accent = accent,
     )
     Credit(
-        title = "cubic-spline — Morgan Herlocker (MIT)",
-        body = "The natural cubic spline the animation curves are evaluated with.",
+        title = stringResource(R.string.settings_cubic_spline_morgan_herlocker_mit),
+        body = stringResource(R.string.settings_the_natural_cubic_spline_the_animation_curves_ar),
         link = "github.com/morganherlocker/cubic-spline",
         accent = accent,
     )
     Credit(
-        title = "Kawarp — Better Lyrics (MIT)",
-        body = "The animated background: blur, noise warp and colour, as Spicy Lyrics runs it.",
+        title = stringResource(R.string.settings_kawarp_better_lyrics_mit),
+        body = stringResource(R.string.settings_the_animated_background_blur_noise_warp_and_colo),
         link = "github.com/better-lyrics/kawarp",
         accent = accent,
     )
     Credit(
-        title = "Beautiful Lyrics — surfbryce",
-        body = "Prior art and a reference point. No code from it is used — it carries no " +
-            "licence grant, so it was read, not borrowed from.",
+        title = stringResource(R.string.settings_beautiful_lyrics_surfbryce),
+        body = stringResource(R.string.settings_prior_art_and_a_reference_point_no_code_from_it),
         link = "github.com/surfbryce/beautiful-lyrics",
         accent = accent,
     )
     Credit(
-        title = "Kuromoji — Atilika (Apache-2.0)",
-        body = "Japanese morphological analysis. The only reason kanji get the right reading.",
+        title = stringResource(R.string.settings_kuromoji_atilika_apache_2_0),
+        body = stringResource(R.string.settings_japanese_morphological_analysis_the_only_reason),
         link = "github.com/atilika/kuromoji",
         accent = accent,
     )
     Credit(
-        title = "phrase-pinyin-data — mozillazg (MIT)",
-        body = "Pinyin by the word, so Chinese characters are read the way the word says them.",
+        title = stringResource(R.string.settings_phrase_pinyin_data_mozillazg_mit),
+        body = stringResource(R.string.settings_pinyin_by_the_word_so_chinese_characters_are_rea),
         link = "github.com/mozillazg/phrase-pinyin-data",
         accent = accent,
     )
     Credit(
-        title = "台華線頂對照典 — 鄭良偉, 楊允言 (CC BY-SA 4.0), iTaigi (CC0), Wiktionary (CC BY-SA 4.0)",
-        body = "Taiwanese Hokkien words and their Tâi-lô, from the ChhoeTaigi database and " +
-            "Wiktionary's editors via kaikki.org. The tables built from them are CC BY-SA 4.0 too. " +
-            "OpenCC (Apache-2.0) folds Simplified characters to read them.",
+        title = stringResource(R.string.settings_cc_by_sa_4_0_itaigi_cc0_wiktionary_cc_by_sa_4_0),
+        body = stringResource(R.string.settings_taiwanese_hokkien_words_and_their_t_i_l_from_the),
         link = "github.com/ChhoeTaigi/ChhoeTaigiDatabase",
         accent = accent,
     )
     Credit(
-        title = "臺灣台語常用詞辭典 — Ministry of Education, R.O.C. (CC BY-ND 3.0 TW)",
-        body = "Downloaded only if you ask for it, under Language, from the Ministry's own site.",
+        title = stringResource(R.string.settings_ministry_of_education_r_o_c_cc_by_nd_3_0_tw),
+        body = stringResource(R.string.settings_downloaded_only_if_you_ask_for_it_under_language),
         link = "sutian.moe.edu.tw",
         accent = accent,
     )
     Credit(
-        title = "ML Kit — Google",
-        body = "On-device translation, so the lyrics never leave the phone to be translated.",
+        title = stringResource(R.string.settings_ml_kit_google),
+        body = stringResource(R.string.settings_on_device_translation_so_the_lyrics_never_leave),
         link = "developers.google.com/ml-kit",
         accent = accent,
     )
     Credit(
-        title = "AMLL TTML Database — amll-dev and its contributors (CC0 1.0)",
-        body = "The word-by-word lyrics this app shows without any account. Every file in it " +
-            "was timed by hand and dedicated to the public domain; the contributor who made " +
-            "the one you are reading is named under the last line.",
+        title = stringResource(R.string.settings_amll_ttml_database_amll_dev_and_its_contributors),
+        body = stringResource(R.string.settings_the_word_by_word_lyrics_this_app_shows_without_a),
         link = "https://github.com/amll-dev/amll-ttml-db",
         accent = accent,
     )
     Credit(
-        title = "OkHttp — Square (Apache-2.0), AndroidX and Kotlin (Apache-2.0)",
-        body = "Networking, UI and language runtime.",
+        title = stringResource(R.string.settings_okhttp_square_apache_2_0_androidx_and_kotlin_apa),
+        body = stringResource(R.string.settings_networking_ui_and_language_runtime),
         link = null,
         accent = accent,
     )
     Credit(
-        title = "Lyrics sources",
-        body = "The AMLL TTML Database, LRCLIB, NetEase Cloud Music, Musixmatch, Spotify " +
-            "and Apple Music. None are affiliated with this app. Lyrics belong to their " +
-            "writers and publishers; nothing is stored anywhere but this device's own cache.",
+        title = stringResource(R.string.settings_lyrics_sources),
+        body = stringResource(R.string.settings_the_amll_ttml_database_lrclib_netease_cloud_musi),
         link = null,
         accent = accent,
     )
@@ -2235,7 +2052,7 @@ private fun Section(
             )
             Icon(
                 AppIcons.ChevronRight,
-                contentDescription = if (open) "Collapse" else "Expand",
+                contentDescription = if (open) stringResource(R.string.settings_collapse) else stringResource(R.string.settings_expand),
                 tint = Color.White.copy(alpha = 0.4f),
                 modifier = Modifier.size(20.dp).rotate(rotation),
             )
@@ -2345,34 +2162,32 @@ private fun HokkienDictionaryRows(dictionary: HokkienDictionary, accent: Color) 
     val status by dictionary.status.collectAsState()
     when (val current = status) {
         HokkienDictionary.Status.Absent, is HokkienDictionary.Status.Failed -> ActionRow(
-            title = "Download the Ministry of Education's dictionary",
-            subtitle = "4.5 MB from sutian.moe.edu.tw, read before the bundled tables",
+            title = stringResource(R.string.settings_download_the_ministry_of_education_s_dictionary),
+            subtitle = stringResource(R.string.settings_4_5_mb_from_sutian_moe_edu_tw_read_before_the_bu),
             accent = accent,
             onClick = { dictionary.download() },
         )
-        HokkienDictionary.Status.Loading -> Hint("Loading the Ministry of Education's dictionary…")
+        HokkienDictionary.Status.Loading -> Hint(stringResource(R.string.settings_loading_the_ministry_of_education_s_dictionary))
         is HokkienDictionary.Status.Downloading -> Hint(
-            "Downloading the dictionary" + (current.fraction?.let { " — ${(it * 100).toInt()}%" } ?: "…"),
+            stringResource(R.string.settings_downloading_the_dictionary, (current.fraction?.let { " — ${(it * 100).toInt()}%" } ?: "…")),
         )
-        is HokkienDictionary.Status.Reading -> Hint("Reading the dictionary — ${(current.fraction * 100).toInt()}%")
+        is HokkienDictionary.Status.Reading -> Hint(stringResource(R.string.settings_reading_the_dictionary, (current.fraction * 100).toInt()))
         is HokkienDictionary.Status.Ready -> ActionRow(
-            title = "Remove the Ministry of Education's dictionary",
-            subtitle = "In use: ${"%,d".format(current.words)} words, ${"%,d".format(current.changed)} read differently or new",
+            title = stringResource(R.string.settings_remove_the_ministry_of_education_s_dictionary),
+            subtitle = stringResource(R.string.settings_in_use_words_read_differently_or_new, "%,d".format(current.words), "%,d".format(current.changed)),
             accent = accent,
             onClick = { dictionary.remove() },
         )
     }
-    (status as? HokkienDictionary.Status.Failed)?.let { Hint("Could not add it: ${it.reason}.") }
+    (status as? HokkienDictionary.Status.Failed)?.let { Hint(stringResource(R.string.settings_could_not_add_it, it.reason)) }
     Help(
-        "臺灣台語常用詞辭典, © Ministry of Education, R.O.C., CC BY-ND 3.0 TW. The reference " +
-            "dictionary for Taiwanese. Its licence allows only unchanged copies, so it is not part of " +
-            "the app: the phone downloads it from the Ministry and keeps only the words and their " +
-            "readings. Where it and the bundled tables disagree about a word, it wins.",
+        stringResource(R.string.settings_ministry_of_education_r_o_c_cc_by_nd_3_0_tw_the),
     )
 }
 
 @Composable
 private fun ReadAsRow(container: AppContainer, settings: Settings, accent: Color) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val playing by container.media.snapshot.collectAsState()
     val lyricsState by container.lyrics.state.collectAsState()
@@ -2399,35 +2214,31 @@ private fun ReadAsRow(container: AppContainer, settings: Settings, accent: Color
     val selected = settings.chineseReadings[key] ?: ChineseReading.AUTO
 
     ChipGroup(
-        label = "Read this song as",
-        options = ChineseReading.entries.map { it to it.label },
+        label = stringResource(R.string.settings_read_this_song_as),
+        options = ChineseReading.entries.map { it to stringResource(it.labelRes) },
         selected = selected,
         accent = accent,
         onSelect = { reading ->
             if (reading == selected) return@ChipGroup
-            scope.launch { note = tagNote(container.lyrics.setChineseReading(key, reading), reading) }
+            scope.launch { note = tagNote(context, container.lyrics.setChineseReading(key, reading), reading) }
         },
     )
-    Hint(note ?: "Auto reads it as ${autoReading.label}.")
+    Hint(note ?: stringResource(R.string.settings_auto_reads_it_as, stringResource(autoReading.labelRes)))
     Help(
-        "For a song read in the wrong language. Hokkien lyrics written only in characters Mandarin " +
-            "uses too cannot be told apart by their words, so say so here. Kept on this phone, and " +
-            "told to your cache server when its admin key is set, so the server knows next time.",
+        stringResource(R.string.settings_for_a_song_read_in_the_wrong_language_hokkien_ly),
     )
 
     val readAs = if (selected == ChineseReading.AUTO) autoReading else selected
     if (readAs == ChineseReading.MANDARIN && document.lines.any { '了' in it.text }) {
         ToggleRow(
-            title = "Sing 了 as liǎo",
-            subtitle = "Every particle 了 in this song, not only held ones",
+            title = stringResource(R.string.settings_sing_as_li_o),
+            subtitle = stringResource(R.string.settings_every_particle_in_this_song_not_only_held_ones),
             checked = key in settings.liaoTracks,
             accent = accent,
             onCheckedChange = { container.settings.setSingsLiao(key, it) },
         )
         Help(
-            "Singers often sing 了 as liǎo rather than le. Held notes already read that way; some " +
-                "singers do it throughout, and nothing in the lyrics says so. Words like 了解 are " +
-                "read as they always are. Kept on this phone.",
+            stringResource(R.string.settings_singers_often_sing_as_li_o_rather_than_le_held_n),
         )
     }
 }
@@ -2446,9 +2257,9 @@ private fun SourceRow(container: AppContainer, settings: Settings, accent: Color
     val chosen = settings.sourceChoices[key] ?: AUTOMATIC
 
     ChipGroup(
-        label = "Lyrics from",
-        options = listOf(AUTOMATIC to "Automatic") + options.map { option ->
-            option.id to if (option.outcome == LyricsCache.Outcome.NONE) "${option.name} · none" else option.name
+        label = stringResource(R.string.settings_lyrics_from),
+        options = listOf(AUTOMATIC to stringResource(R.string.settings_automatic)) + options.map { option ->
+            option.id to if (option.outcome == LyricsCache.Outcome.NONE) stringResource(R.string.settings_none, option.name) else option.name
         },
         selected = chosen,
         accent = accent,
@@ -2459,34 +2270,31 @@ private fun SourceRow(container: AppContainer, settings: Settings, accent: Color
     val chosenOption = options.firstOrNull { it.id == chosen }
     Hint(
         when {
-            shownName == null -> "Looking it up."
+            shownName == null -> stringResource(R.string.settings_looking_it_up)
             chosen != AUTOMATIC && shown.providerId != chosen && chosenOption != null -> when (chosenOption.outcome) {
-                LyricsCache.Outcome.NONE -> "${chosenOption.name} has nothing for this song, so the best answer is shown: $shownName."
-                LyricsCache.Outcome.FAILED -> "${chosenOption.name} did not answer, so the best answer is shown: $shownName."
-                else -> "${chosenOption.name} could not be asked, so the best answer is shown: $shownName."
+                LyricsCache.Outcome.NONE -> stringResource(R.string.settings_has_nothing_for_this_song_so_the_best_answer_is, chosenOption.name, shownName)
+                LyricsCache.Outcome.FAILED -> stringResource(R.string.settings_did_not_answer_so_the_best_answer_is_shown, chosenOption.name, shownName)
+                else -> stringResource(R.string.settings_could_not_be_asked_so_the_best_answer_is_shown, chosenOption.name, shownName)
             }
-            else -> "Showing $shownName."
+            else -> stringResource(R.string.settings_showing, shownName)
         },
     )
     Help(
-        "The best timing wins and your order breaks ties, which is usually right. When a source " +
-            "with simpler timing fits this recording better — a line-synced Spotify over a " +
-            "word-synced match for a different cut — pick it here, and this song shows it from now " +
-            "on whatever the others have. Kept on this phone.",
+        stringResource(R.string.settings_the_best_timing_wins_and_your_order_breaks_ties),
     )
 }
 
 private const val AUTOMATIC = ""
 
-private fun tagNote(result: CacheServerProvider.LanguageTag?, reading: ChineseReading): String? {
-    val told = if (reading == ChineseReading.AUTO) "The server decides for itself again." else "Told the server too."
+private fun tagNote(context: android.content.Context, result: CacheServerProvider.LanguageTag?, reading: ChineseReading): String? {
+    val told = if (reading == ChineseReading.AUTO) context.getString(R.string.settings_the_server_decides_for_itself_again) else context.getString(R.string.settings_told_the_server_too)
     return when (result) {
         null, CacheServerProvider.LanguageTag.NO_SERVER -> null
         CacheServerProvider.LanguageTag.SAVED -> told
-        CacheServerProvider.LanguageTag.NO_KEY -> "Kept on this phone. Set the server's admin key to tell the server too."
-        CacheServerProvider.LanguageTag.WRONG_KEY -> "Kept on this phone. The server did not accept the key."
-        CacheServerProvider.LanguageTag.NOT_ADMIN -> "Kept on this phone. Only the admin key can tag songs on the server."
-        CacheServerProvider.LanguageTag.FAILED -> "Kept on this phone. The server could not be reached."
+        CacheServerProvider.LanguageTag.NO_KEY -> context.getString(R.string.settings_kept_on_this_phone_set_the_server_s_admin_key_to)
+        CacheServerProvider.LanguageTag.WRONG_KEY -> context.getString(R.string.settings_kept_on_this_phone_the_server_did_not_accept_the)
+        CacheServerProvider.LanguageTag.NOT_ADMIN -> context.getString(R.string.settings_kept_on_this_phone_only_the_admin_key_can_tag_so)
+        CacheServerProvider.LanguageTag.FAILED -> context.getString(R.string.settings_kept_on_this_phone_the_server_could_not_be_reach)
     }
 }
 
@@ -2698,7 +2506,7 @@ private fun ProviderRow(
         ) {
             Icon(
                 AppIcons.DragHandle,
-                contentDescription = "Reorder $title",
+                contentDescription = stringResource(R.string.settings_reorder, title),
                 tint = Color.White.copy(alpha = if (raised) 0.9f else 0.35f),
                 modifier = Modifier.size(18.dp),
             )
@@ -2775,17 +2583,17 @@ private fun SettingsBackupRows(container: AppContainer, accent: Color) {
                     )
                     context.contentResolver.openOutputStream(uri)?.use {
                         it.write(text.toByteArray())
-                    } ?: error("could not write there")
+                    } ?: error(context.getString(R.string.settings_could_not_write_there))
                     text.length
                 }
             }
             finish(
                 result.fold(
                     onSuccess = { size ->
-                        val tokens = if (includeTokens) ", tokens encrypted" else ", no tokens"
-                        "Saved — ${size / 1024 + 1} KB$tokens."
+                        val tokens = if (includeTokens) context.getString(R.string.settings_tokens_encrypted) else context.getString(R.string.settings_no_tokens)
+                        context.getString(R.string.settings_saved_kb, size / 1024 + 1, tokens)
                     },
-                    onFailure = { "Could not save: ${it.message ?: "unknown error"}" },
+                    onFailure = { context.getString(R.string.settings_could_not_save, it.message ?: "unknown error") },
                 ),
             )
         }
@@ -2799,17 +2607,17 @@ private fun SettingsBackupRows(container: AppContainer, accent: Color) {
                 is SettingsBackup.Restore.Ready -> {
                     store.restore(outcome.settings, outcome.credentials)
                     pending = null
-                    val tokens = if (outcome.credentials.isEmpty()) "" else " and its tokens"
-                    finish("Restored ${outcome.settings.size} settings$tokens.")
+                    val tokens = if (outcome.credentials.isEmpty()) "" else context.getString(R.string.settings_and_its_tokens)
+                    finish(context.getString(R.string.settings_restored_settings, outcome.settings.size, tokens))
                 }
                 SettingsBackup.Restore.NeedsPassphrase -> {
                     pending = text
-                    finish("That file holds tokens. Type its passphrase, then Restore again.")
+                    finish(context.getString(R.string.settings_that_file_holds_tokens_type_its_passphrase_then))
                 }
                 SettingsBackup.Restore.WrongPassphrase ->
-                    finish("That passphrase does not open the tokens in that file.")
+                    finish(context.getString(R.string.settings_that_passphrase_does_not_open_the_tokens_in_that))
                 SettingsBackup.Restore.NotABackup ->
-                    finish("That is not a Melisma settings file.")
+                    finish(context.getString(R.string.settings_that_is_not_a_melisma_settings_file))
             }
         }
     }
@@ -2828,7 +2636,7 @@ private fun SettingsBackupRows(container: AppContainer, accent: Color) {
                 }.getOrNull()
             }
             if (text == null) {
-                finish("Could not read that file.")
+                finish(context.getString(R.string.settings_could_not_read_that_file))
             } else {
                 applyRestore(text, passphrase.takeIf { it.isNotBlank() })
             }
@@ -2836,25 +2644,20 @@ private fun SettingsBackupRows(container: AppContainer, accent: Color) {
     }
 
     ToggleRow(
-        title = "Include your tokens",
-        subtitle = "Encrypted under a passphrase you choose",
+        title = stringResource(R.string.settings_include_your_tokens),
+        subtitle = stringResource(R.string.settings_encrypted_under_a_passphrase_you_choose),
         checked = includeTokens,
         accent = accent,
         onCheckedChange = { includeTokens = it },
     )
     Help(
-        "Off, the file holds settings only and is plain readable JSON — safe to keep anywhere, and " +
-            "it restores with no passphrase.\n\nOn, your Spotify, Apple, Musixmatch and NetEase " +
-            "credentials go in as well, encrypted with AES-256 under a key stretched from your " +
-            "passphrase. They are otherwise deliberately kept out of Android's own backup, which is " +
-            "a promise this would break if it wrote them in the clear. Lose the passphrase and that " +
-            "half of the file is gone — there is no way back into it, by design.",
+        stringResource(R.string.settings_off_the_file_holds_settings_only_and_is_plain_re),
     )
 
     if (includeTokens || pending != null) {
         SecretField(
-            label = "Passphrase",
-            help = "Used to encrypt the tokens on the way out, and to open them on the way back in.",
+            label = stringResource(R.string.settings_passphrase),
+            help = stringResource(R.string.settings_used_to_encrypt_the_tokens_on_the_way_out_and_to),
             value = passphrase,
             accent = accent,
             onChange = { passphrase = it },
@@ -2864,12 +2667,12 @@ private fun SettingsBackupRows(container: AppContainer, accent: Color) {
     val ready = !busy && (!includeTokens || passphrase.length >= MIN_PASSPHRASE)
     ActionRow(
         title = when {
-            busy -> "Working…"
+            busy -> stringResource(R.string.settings_working)
             includeTokens && passphrase.length < MIN_PASSPHRASE ->
-                "Choose a passphrase of at least $MIN_PASSPHRASE characters"
-            else -> "Back up settings to a file"
+                stringResource(R.string.settings_choose_a_passphrase_of_at_least_characters, MIN_PASSPHRASE)
+            else -> stringResource(R.string.settings_back_up_settings_to_a_file)
         },
-        subtitle = "You choose where it goes",
+        subtitle = stringResource(R.string.settings_you_choose_where_it_goes),
         accent = accent,
         onClick = {
             if (ready) {
@@ -2880,8 +2683,8 @@ private fun SettingsBackupRows(container: AppContainer, accent: Color) {
     )
 
     ActionRow(
-        title = if (pending != null) "Restore (with that passphrase)" else "Restore from a file",
-        subtitle = "Anything the file does not mention is left as it is",
+        title = if (pending != null) stringResource(R.string.settings_restore_with_that_passphrase) else stringResource(R.string.settings_restore_from_a_file),
+        subtitle = stringResource(R.string.settings_anything_the_file_does_not_mention_is_left_as_it),
         accent = accent,
         onClick = {
             if (busy) return@ActionRow
@@ -2952,7 +2755,7 @@ private fun SecretField(
                 modifier = Modifier.fillMaxWidth(),
             )
             if (text.isEmpty()) {
-                Text("Not set", color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp)
+                Text(stringResource(R.string.settings_not_set), color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp)
             }
         }
     }

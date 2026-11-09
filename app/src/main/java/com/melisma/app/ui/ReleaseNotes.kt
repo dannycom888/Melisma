@@ -30,6 +30,8 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.melisma.app.R
 
 /**
  * A release's notes, rendered from the Markdown GitHub holds them in.
@@ -39,7 +41,8 @@ import androidx.compose.ui.unit.sp
  */
 @Composable
 fun ReleaseNotes(markdown: String, modifier: Modifier = Modifier) {
-    val blocks = remember(markdown) { notesBlocks(markdown) }
+    val downloadApkLabel = stringResource(R.string.releasenotes_download_the_apk)
+    val blocks = remember(markdown, downloadApkLabel) { notesBlocks(markdown, downloadApkLabel) }
     Column(modifier) {
         blocks.forEachIndexed { index, block ->
             val previous = blocks.getOrNull(index - 1)
@@ -135,9 +138,9 @@ private val TABLE_DIVIDER = Regex("""^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$
  * APK below" — which is wrong in the app, so that rule and what follows are left out. Any other
  * rule is content.
  */
-internal fun notesBlocks(markdown: String): List<NotesBlock> {
+internal fun notesBlocks(markdown: String, downloadApkLabel: String = "Download the APK"): List<NotesBlock> {
     val lines = markdown.replace("\r\n", "\n").lines()
-    val footer = footerStart(lines)
+    val footer = footerStart(lines, downloadApkLabel)
     val body = if (footer >= 0) lines.subList(0, footer) else lines
 
     val blocks = mutableListOf<NotesBlock>()
@@ -225,7 +228,7 @@ internal fun notesBlocks(markdown: String): List<NotesBlock> {
 }
 
 /** The line of the last rule outside code, when the footer follows it; otherwise -1. */
-private fun footerStart(lines: List<String>): Int {
+private fun footerStart(lines: List<String>, downloadApkLabel: String): Int {
     var inCode = false
     var lastRule = -1
     lines.forEachIndexed { index, line ->
@@ -234,7 +237,7 @@ private fun footerStart(lines: List<String>): Int {
     }
     if (lastRule < 0) return -1
     val next = lines.drop(lastRule + 1).firstOrNull { it.isNotBlank() }?.trim() ?: return lastRule
-    return if (next.startsWith("Download the APK", ignoreCase = true)) lastRule else -1
+    return if (next.startsWith(downloadApkLabel, ignoreCase = true)) lastRule else -1
 }
 
 /** Two spaces or a tab per level, the way the notes indent. */

@@ -43,6 +43,16 @@ interface LocalFolderSource {
     /** All audio files under the configured folder, found recursively. Empty when no folder is set. */
     suspend fun listAudioFiles(): List<LocalAudioFile> = emptyList()
 
+    /**
+     * One walk collecting `.lrc` files and audio files together.
+     *
+     * The default walks twice (once per list); the SAF implementation walks
+     * once. An index build does two full folder traversals otherwise, which
+     * is what makes a big folder outrun the provider's lookup timeout.
+     */
+    suspend fun listAll(): Pair<List<LocalLrcFile>, List<LocalAudioFile>> =
+        listLrcFiles() to listAudioFiles()
+
     /** Reads one file's raw bytes, or null when it cannot be opened. */
     suspend fun readBytes(file: LocalLrcFile): ByteArray?
 }
@@ -60,12 +70,18 @@ class DocumentFileLocalFolderSource(
     private val appContext = context.applicationContext
 
     override suspend fun listLrcFiles(): List<LocalLrcFile> = withContext(Dispatchers.IO) {
-        collectFiles().first
+        listAll().first
     }
 
     override suspend fun listAudioFiles(): List<LocalAudioFile> = withContext(Dispatchers.IO) {
-        collectFiles().second
+        listAll().second
     }
+
+    /** One recursive walk collecting `.lrc` files and audio files together. */
+    override suspend fun listAll(): Pair<List<LocalLrcFile>, List<LocalAudioFile>> =
+        withContext(Dispatchers.IO) {
+            collectFiles()
+        }
 
     /** One recursive walk collecting `.lrc` files and audio files together. */
     private fun collectFiles(): Pair<List<LocalLrcFile>, List<LocalAudioFile>> {

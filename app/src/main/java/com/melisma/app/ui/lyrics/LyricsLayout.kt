@@ -275,6 +275,12 @@ object LyricsLayoutBuilder {
         showCredits: Boolean = true,
         /** Null switches furigana off; true renders it as hiragana, false as katakana. */
         furiganaHiragana: Boolean? = null,
+        /**
+         * The "Lyrics from …" line, already formatted. The app passes the translated
+         * string; the default keeps the English wording for callers (tests) that do not.
+         */
+        providerAttribution: String? = document.providerName.takeIf { it.isNotBlank() }
+            ?.let { "Lyrics from $it" },
     ): LyricsLayout {
         // Reserve the ruby band across the whole document rather than per line, so the
         // spacing does not jump between a line with kanji and one without.
@@ -317,7 +323,7 @@ object LyricsLayoutBuilder {
         }
 
         val footer = if (showCredits) {
-            buildFooter(document, metrics, widthPx - insetPx, y)
+            buildFooter(document, metrics, widthPx - insetPx, y, providerAttribution)
         } else {
             emptyList()
         }
@@ -331,6 +337,7 @@ object LyricsLayoutBuilder {
         metrics: LyricsMetrics,
         maxWidth: Float,
         top: Float,
+        providerAttribution: String?,
     ): List<FooterRow> {
         val rows = ArrayList<FooterRow>(4)
         var y = top + metrics.lineSpacingPx
@@ -350,9 +357,8 @@ object LyricsLayoutBuilder {
             }
         }
 
-        val provider = document.providerName.takeIf { it.isNotBlank() }
-        if (provider != null) {
-            for (row in wrap("Lyrics from $provider", metrics.providerPaint, maxWidth)) {
+        if (providerAttribution != null) {
+            for (row in wrap(providerAttribution, metrics.providerPaint, maxWidth)) {
                 y += metrics.providerFontSizePx * 1.5f
                 rows += FooterRow(
                     text = row,
