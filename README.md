@@ -1,3 +1,17 @@
+# Melisma (local-only fork)
+
+This is a modified fork of [Melisma](https://github.com/MelismaApp/melisma), licensed under the [GNU Affero General Public License v3.0](LICENSE).
+
+Changes in this fork:
+
+- **Local lyrics only** — lyrics come only from `.lrc` files in a local folder you pick. No online lyrics lookup, no network requests for lyrics.
+- **Chinese UI** — full Simplified Chinese translation, with an in-app language switch (follow system / 中文（简体） / English).
+- The local-lyrics index is built once at startup, and Rescan reports how many files were found.
+
+This fork is distributed under the same AGPL-3.0 license — free for personal use; if you share a modified version, share your changes under the same license.
+
+---
+
 <div align="center">
 
 <img src="docs/branding/icon.png" width="104" alt="" />
