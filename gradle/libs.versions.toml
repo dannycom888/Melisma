@@ -15,6 +15,7 @@ kuromoji = "0.9.0"
 robolectric = "4.16"
 carApp = "1.7.0"
 shizuku = "13.1.5"
+documentfile = "1.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -41,6 +42,7 @@ androidx-car-app = { group = "androidx.car.app", name = "app", version.ref = "ca
 androidx-car-app-testing = { group = "androidx.car.app", name = "app-testing", version.ref = "carApp" }
 shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
 shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
+androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

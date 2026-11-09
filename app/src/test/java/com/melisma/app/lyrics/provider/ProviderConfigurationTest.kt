@@ -107,6 +107,7 @@ class ProviderConfigurationTest {
             MusixmatchProvider(credentials).id,
             LrcLibProvider(credentials).id,
             LrcRedProvider().id,
+            LocalFolderLyricsProvider().id,
             "local",
         )
         // Guards against adding a provider to the settings order and forgetting to build
@@ -141,9 +142,17 @@ class ProviderConfigurationTest {
     }
 
     @Test
-    fun `spotify is on by default so that pasting a token is enough`() {
-        // It was off, which meant a token changed nothing until the user also found the
-        // provider list — and nothing said so.
-        assertTrue("spotify" in Settings.DEFAULT_ENABLED_PROVIDERS)
+    fun `local folder is on by default so that picking a folder is enough`() {
+        // Local-only build: the folder is the only source, so it is the one
+        // that must be on without the user having to find the provider list
+        // first. (Upstream asserted the same for Spotify.)
+        assertTrue("local-folder" in Settings.DEFAULT_ENABLED_PROVIDERS)
+        assertTrue("local-folder" in Settings.DEFAULT_PROVIDER_ORDER)
+    }
+
+    @Test
+    fun `local folder is unconfigured until a folder is picked`() {
+        assertFalse(LocalFolderLyricsProvider(hasFolder = { false }).isConfigured)
+        assertTrue(LocalFolderLyricsProvider(hasFolder = { true }).isConfigured)
     }
 }

@@ -34,6 +34,10 @@ class LaunchCheckTest {
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
         settings = SettingsStore(context)
+        // Local-only build: the automatic check defaults to off (an upstream
+        // release could not install over this build anyway). These tests pin
+        // the launch-check timing, not the default, so switch it on here.
+        settings.setAutoUpdateCheck(true)
         looks = 0
     }
 

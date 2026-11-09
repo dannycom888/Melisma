@@ -2,22 +2,17 @@ package com.melisma.app
 
 import android.app.Application
 import android.content.Context
+import android.net.Uri
 import com.melisma.app.lyrics.LyricsCache
 import com.melisma.app.lyrics.LyricsRepository
 import com.melisma.app.lyrics.HokkienDictionary
 import com.melisma.app.lyrics.SpokenLanguageStore
-import com.melisma.app.lyrics.provider.AmllTtmlProvider
-import com.melisma.app.lyrics.provider.AppleMusicProvider
-import com.melisma.app.lyrics.provider.CacheServerProvider
+import com.melisma.app.lyrics.provider.DocumentFileLocalFolderSource
+import com.melisma.app.lyrics.provider.LocalFolderLyricsProvider
 import com.melisma.app.lyrics.provider.LocalLyricsStore
-import com.melisma.app.lyrics.provider.LrcLibProvider
-import com.melisma.app.lyrics.provider.LrcRedProvider
 import com.melisma.app.lyrics.provider.LyricsProvider
-import com.melisma.app.lyrics.provider.MusixmatchProvider
-import com.melisma.app.lyrics.provider.NeteaseProvider
 import com.melisma.app.lyrics.provider.SpotifyBrowserToken
 import com.melisma.app.lyrics.provider.SpotifyWebToken
-import com.melisma.app.lyrics.provider.SpotifyLyricsProvider
 import com.melisma.app.lyrics.romanize.Romanizer
 import com.melisma.app.lyrics.translate.LyricsTranslator
 import com.melisma.app.media.MediaSessionRepository
@@ -98,6 +93,21 @@ class AppContainer(context: Context) {
     private val romanizer = Romanizer()
     private val translator = LyricsTranslator()
     val localLyrics = LocalLyricsStore(context)
+
+    /**
+     * Local-only build: the user's own `.lrc` files in a folder they pick,
+     * read through the Storage Access Framework.
+     *
+     * The source reads the folder URI from Settings on every scan, so picking
+     * a new folder takes effect on the next lookup; the collector in init
+     * only drops the cached index so the rescan actually happens.
+     */
+    private val localFolderSource = DocumentFileLocalFolderSource(context) {
+        settings.current.localLyricsFolderUri?.let { Uri.parse(it) }
+    }
+    val localFolderLyrics = LocalFolderLyricsProvider(
+        hasFolder = { settings.current.localLyricsFolderUri != null },
+    ).also { it.attach(localFolderSource) }
     /**
      * ISRCs the app has learned, remembered across launches.
      *
@@ -112,17 +122,18 @@ class AppContainer(context: Context) {
     /** The Ministry of Education's Taiwanese dictionary, when it has been downloaded. */
     val hokkienDictionary = HokkienDictionary(context, scope)
 
-    /** Every provider that exists; Settings decides which are asked and in what order. */
+    /**
+     * Every provider that exists; Settings decides which are asked and in what order.
+     *
+     * Local-only build: the local folder is the only lyrics source. The
+     * online providers (LRCLIB, Musixmatch, NetEase, AMLL, lrc.red, Spotify,
+     * Apple Music, cache server) are not constructed at all, so nothing in
+     * the lyrics path can touch the network. The import store stays — it is
+     * the user's own files, consulted first by the repository.
+     */
     val providers: List<LyricsProvider> = listOf(
         localLyrics,
-        CacheServerProvider(settings, spokenLanguages),
-        AppleMusicProvider(settings),
-        LrcRedProvider(),
-        AmllTtmlProvider(settings),
-        SpotifyLyricsProvider(settings),
-        NeteaseProvider(settings),
-        MusixmatchProvider(settings),
-        LrcLibProvider(settings),
+        localFolderLyrics,
     )
 
     val lyrics = LyricsRepository(
@@ -302,6 +313,16 @@ class AppContainer(context: Context) {
 
     init {
         scope.launch { watchForIdle() }
+
+        // A new lyrics folder means the cached file index is stale: drop it
+        // so the next lookup rescans. The source itself reads the folder URI
+        // from Settings on every scan, so nothing needs re-attaching.
+        scope.launch {
+            settings.settings
+                .map { it.localLyricsFolderUri }
+                .distinctUntilChanged()
+                .collect { localFolderLyrics.invalidate() }
+        }
 
         // The only place with both a Context and the settings. Installed unconditionally; whether it
         // ever runs is decided per call by `spotifyBrowserTokenEnabled`.

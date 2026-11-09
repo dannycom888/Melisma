@@ -2,7 +2,7 @@ package com.melisma.app.settings
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
-import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -10,8 +10,10 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * A source that joins the defaults after an install has its own list of enabled sources is offered
- * once — switched on for that install — and then left to the user like every other.
+ * Local-only build: there is no default-on source added after installs
+ * started keeping their own list, so nothing is ever offered to an older
+ * install. The upstream behaviour this file used to pin — offering lrc.red
+ * once to installs from before it existed — is gone with the online sources.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -22,49 +24,28 @@ class NewDefaultSourceTest {
     private val prefs = context.getSharedPreferences("melisma", Context.MODE_PRIVATE).also { it.edit().clear().commit() }
 
     @Test
-    fun `an install from before the source existed gets it switched on, and keeps its own choices`() {
-        // Written by a version without lrc.red, with Musixmatch deliberately switched off.
-        prefs.edit().putStringSet(SettingsStore.KEY_PROVIDERS_ON, setOf("local", "cacheserver", "spotify", "amll", "netease", "lrclib")).commit()
-
-        val enabled = SettingsStore(context).current.enabledProviders
-        assertTrue(enabled.toString(), "lrcred" in enabled)
-        assertFalse(enabled.toString(), "musixmatch" in enabled)
-    }
-
-    @Test
-    fun `offered once - switching it off afterwards sticks`() {
-        prefs.edit().putStringSet(SettingsStore.KEY_PROVIDERS_ON, setOf("local", "amll")).commit()
-        val store = SettingsStore(context)
-        assertTrue("lrcred" in store.current.enabledProviders)
-
-        store.setProviderEnabled("lrcred", false)
-        assertFalse("lrcred" in SettingsStore(context).current.enabledProviders)
-    }
-
-    @Test
     fun `a fresh install simply has the defaults`() {
         val enabled = SettingsStore(context).current.enabledProviders
-        assertTrue("lrcred" in enabled)
-        assertTrue(prefs.getStringSet(SettingsStore.KEY_PROVIDERS_OFFERED, null) == Settings.DEFAULT_ENABLED_PROVIDERS)
+        assertEquals(setOf("local-folder"), enabled)
+        // Nothing is ever offered: the only default was already in the offered set by
+        // definition, so offerNewDefaults() returns early and leaves the key unset.
+        assertTrue(prefs.getStringSet(SettingsStore.KEY_PROVIDERS_OFFERED, null) == null)
     }
 
     @Test
-    fun `a backup from before the source existed gets it on restore, a newer one keeps its choice`() {
+    fun `an older install keeps its own choices, nothing new is offered`() {
+        // Written by a version with the upstream defaults.
+        prefs.edit().putStringSet(SettingsStore.KEY_PROVIDERS_ON, setOf("local", "amll")).commit()
+
+        val enabled = SettingsStore(context).current.enabledProviders
+        assertEquals(setOf("local", "amll"), enabled)
+    }
+
+    @Test
+    fun `a backup from before keeps its choice, and no source is added on restore`() {
         val store = SettingsStore(context)
 
-        // Older backup: its own list, nothing about what it had been offered.
         store.restore(mapOf(SettingsStore.KEY_PROVIDERS_ON to setOf("local", "amll", "lrclib")), emptyMap())
-        assertTrue(store.current.enabledProviders.toString(), "lrcred" in store.current.enabledProviders)
-        assertTrue("amll" in store.current.enabledProviders)
-
-        // Newer backup: lrc.red was offered and switched off on purpose.
-        store.restore(
-            mapOf(
-                SettingsStore.KEY_PROVIDERS_ON to setOf("local", "amll"),
-                SettingsStore.KEY_PROVIDERS_OFFERED to Settings.DEFAULT_ENABLED_PROVIDERS,
-            ),
-            emptyMap(),
-        )
-        assertFalse("lrcred" in store.current.enabledProviders)
+        assertEquals(setOf("local", "amll", "lrclib"), store.current.enabledProviders)
     }
 }

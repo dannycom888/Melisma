@@ -134,6 +134,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     implementation(libs.androidx.palette)
+    // Storage Access Framework folder access for the local lyrics folder.
+    implementation(libs.androidx.documentfile)
     // Injects a script before any page script runs, which is the only reliable way to see a
     // header the Spotify player sets on its own requests. The platform WebView cannot do it.
     implementation(libs.androidx.webkit)

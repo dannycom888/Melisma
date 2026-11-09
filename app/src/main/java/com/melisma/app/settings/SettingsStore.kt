@@ -329,8 +329,19 @@ data class Settings(
      *
      * Deezer answers for a Deezer id with no key, and the cache server for the rest. Only the id
      * leaves the phone, and it turns every source's title search into an exact match.
+     *
+     * Local-only build: off by default, because there is no online source left
+     * that could use the answer — the local folder matches by file name.
      */
-    val identifyTracks: Boolean = true,
+    val identifyTracks: Boolean = false,
+    /**
+     * The folder of the user's own `.lrc` files, as a persisted SAF tree URI
+     * string, or null before one is picked.
+     *
+     * Local-only build: the folder is the only lyrics source, so this is the
+     * setting the whole lookup depends on.
+     */
+    val localLyricsFolderUri: String? = null,
     val enabledProviders: Set<String> = DEFAULT_ENABLED_PROVIDERS,
     val providerOrder: List<String> = DEFAULT_PROVIDER_ORDER,
 
@@ -430,8 +441,12 @@ data class Settings(
      * On by default: the app is installed from an APK, so nothing else will ever tell the
      * user a fix exists. It is one small request to a public endpoint, and it downloads
      * nothing until they say so.
+     *
+     * Local-only build: off by default. An upstream release is signed with a
+     * different key and could not install over this build anyway; offering it
+     * would only confuse.
      */
-    val autoUpdateCheck: Boolean = true,
+    val autoUpdateCheck: Boolean = false,
     val lastUpdateCheckAt: Long = 0L,
 
     /**
@@ -501,42 +516,32 @@ data class Settings(
         get() = developerMode && spotifyBrowserToken && !spDcCookie.isNullOrBlank()
 
     companion object {
+        /**
+         * Local-only build: the local folder is the only lyrics source. The
+         * upstream order listed every online source; this build asks nobody
+         * else, so the order is one row long.
+         */
         val DEFAULT_PROVIDER_ORDER = listOf(
-            // Highest first, and the order only breaks ties: a word-by-word result always
-            // beats a line-by-line one whatever the order says, because that is the
-            // difference between karaoke and a teleprompter.
-            //
-            // Within a tier this is about how the match was made. Your own file is a
-            // certainty. Apple and Spotify identify the recording — Spotify by the id the
-            // media session handed us, which cannot be the wrong song — so they come before
-            // the databases that have to guess from a title.
-            // lrc.red serves Apple's own data by ISRC, so it sits with Apple: exact when the
-            // recording is known, a guess from a title when it is not.
-            "local", "cacheserver", "applemusic", "lrcred", "spotify", "amll", "netease", "musixmatch",
-            "lrclib",
+            "local-folder",
         )
 
         /**
-         * The ones that work with no setup. The rest need a token, or are somebody
-         * else's service, so they stay off until asked for.
-         */
-        /**
          * On unless it needs something the user has not given it.
          *
-         * `spotify` is here despite needing a token: it reports itself unconfigured without
-         * one and is skipped rather than queried, so leaving it on costs nothing — and
-         * leaving it *off* meant pasting a token changed nothing, which is not what anyone
-         * would expect. `applemusic` stays off because it needs two tokens and one of them
-         * is a paid membership away.
+         * Local-only build: only the local folder. Picking the folder is the
+         * one setup step; until then the provider reports itself unconfigured.
          */
         val DEFAULT_ENABLED_PROVIDERS =
-            setOf("local", "cacheserver", "spotify", "lrcred", "amll", "netease", "musixmatch", "lrclib")
+            setOf("local-folder")
 
         /**
          * Default-on sources added after installs started keeping their own list. An install
          * from before one of these existed has it switched on once; see [offerNewDefaults].
+         *
+         * Local-only build: none. The upstream entry (`lrcred`) is an online
+         * source and must never be offered.
          */
-        val DEFAULTS_ADDED_LATER = setOf("lrcred")
+        val DEFAULTS_ADDED_LATER = emptySet<String>()
 
         const val DEFAULT_LRCLIB_URL = "https://lrclib.net"
         const val DEFAULT_NETEASE_URL = "https://music.163.com"
@@ -764,7 +769,8 @@ class SettingsStore(context: Context) : ProviderCredentials {
         popupStillBackground = prefs.getBoolean(KEY_POPUP_STILL_BACKGROUND, true),
 
         prefetchNextTrack = prefs.getBoolean(KEY_PREFETCH_NEXT, true),
-        identifyTracks = prefs.getBoolean(KEY_IDENTIFY_TRACKS, true),
+        identifyTracks = prefs.getBoolean(KEY_IDENTIFY_TRACKS, false),
+        localLyricsFolderUri = prefs.getString(KEY_LOCAL_LYRICS_FOLDER, null),
         enabledProviders = prefs.getStringSet(KEY_PROVIDERS_ON, null)
             ?: Settings.DEFAULT_ENABLED_PROVIDERS,
         ignoredPlayers = prefs.getStringSet(KEY_PLAYERS_IGNORED, null).orEmpty(),
@@ -806,7 +812,7 @@ class SettingsStore(context: Context) : ProviderCredentials {
         saverStillCanvas = prefs.getBoolean(KEY_SAVER_STILL_CANVAS, true),
         saverReleaseScreen = prefs.getBoolean(KEY_SAVER_RELEASE_SCREEN, false),
         saverSkipPrefetch = prefs.getBoolean(KEY_SAVER_SKIP_PREFETCH, true),
-        autoUpdateCheck = prefs.getBoolean(KEY_AUTO_UPDATE, true),
+        autoUpdateCheck = prefs.getBoolean(KEY_AUTO_UPDATE, false),
         lastUpdateCheckAt = prefs.getLong(KEY_UPDATE_CHECKED_AT, 0L),
         shizukuUpdates = prefs.getBoolean(KEY_SHIZUKU_UPDATES, false),
         skippedUpdateVersion = prefs.trimmed(KEY_UPDATE_SKIPPED),
@@ -958,6 +964,10 @@ class SettingsStore(context: Context) : ProviderCredentials {
 
     fun setPrefetchNextTrack(value: Boolean) = edit { putBoolean(KEY_PREFETCH_NEXT, value) }
     fun setIdentifyTracks(value: Boolean) = edit { putBoolean(KEY_IDENTIFY_TRACKS, value) }
+
+    fun setLocalLyricsFolderUri(uri: String?) = edit {
+        if (uri == null) remove(KEY_LOCAL_LYRICS_FOLDER) else putString(KEY_LOCAL_LYRICS_FOLDER, uri)
+    }
 
     fun setTranslationSource(value: TranslationSource) = edit {
         putString(KEY_TRANSLATE_SOURCE, value.name)
@@ -1282,6 +1292,7 @@ class SettingsStore(context: Context) : ProviderCredentials {
 
         const val KEY_PREFETCH_NEXT = "prefetch_next"
         const val KEY_IDENTIFY_TRACKS = "identify_tracks"
+        const val KEY_LOCAL_LYRICS_FOLDER = "local_lyrics_folder_uri"
         const val KEY_PROVIDERS_ON = "providers_enabled"
         const val KEY_PROVIDERS_OFFERED = "providers_offered"
         const val KEY_PROVIDER_ORDER = "provider_order"

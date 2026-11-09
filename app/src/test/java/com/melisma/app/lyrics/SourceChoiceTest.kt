@@ -127,6 +127,12 @@ class SourceChoiceTest {
         settings = SettingsStore(context)
         // Identification would ask real catalogues over the network; the sources here are fakes.
         settings.setIdentifyTracks(false)
+        // Local-only build: the defaults enable only local-folder, so the fake
+        // sources this test chooses between have to be switched on explicitly.
+        // The test pins the choosing machinery, not the defaults.
+        settings.setProviderEnabled("musixmatch", true)
+        settings.setProviderEnabled("lrclib", true)
+        settings.setProviderOrder(listOf("musixmatch", "lrclib"))
 
         val manager = context.getSystemService(ConnectivityManager::class.java)
         val capabilities = ShadowNetworkCapabilities.newInstance()

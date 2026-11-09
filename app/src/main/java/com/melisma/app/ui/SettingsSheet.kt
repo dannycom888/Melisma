@@ -5,6 +5,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -103,6 +105,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.Image
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.documentfile.provider.DocumentFile
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -144,6 +147,11 @@ private val PROVIDER_INFO = mapOf(
     "local" to ProviderInfo(
         "Your own files",
         "Imported .lrc / .ttml. Always tried first and always wins.",
+    ),
+    "local-folder" to ProviderInfo(
+        "Local files",
+        "Your own .lrc files in a folder you pick. The only source in this build.",
+        needs = "Pick a lyrics folder above",
     ),
     "cacheserver" to ProviderInfo(
         "Cache server",
@@ -934,36 +942,66 @@ fun SettingsSheet(
 
             Section(
                 title = "Where lyrics come from",
-                subtitle = "Which sources, and in what order",
+                subtitle = "Your own .lrc files",
                 open = openSection == "sources",
                 accent = accent,
                 onToggle = { openSection = if (openSection == "sources") null else "sources" },
             ) {
-                Hint(
-                    "Every enabled source is asked at once and the best answer wins — " +
-                        "word-by-word beats line-by-line. Order breaks ties. Hold a handle to " +
-                        "drag a source up or down.",
-                )
-                ToggleRow(
-                    title = "Identify the recording",
-                    subtitle = "Ask MusicBrainz and Deezer which recording is playing, so every " +
-                        "source can match it exactly",
-                    checked = settings.identifyTracks,
+                // Local-only build: the folder is the only source. The picker
+                // and the rescan live here, above the single provider row.
+                val folderPicker = rememberLauncherForActivityResult(
+                    ActivityResultContracts.OpenDocumentTree(),
+                ) { uri ->
+                    if (uri == null) return@rememberLauncherForActivityResult
+                    runCatching {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                        )
+                    }
+                    store.setLocalLyricsFolderUri(uri.toString())
+                    scope.launch {
+                        container.localFolderLyrics.refreshIndex()
+                        container.lyrics.retry()
+                    }
+                }
+                var folderRescanned by remember { mutableStateOf(false) }
+                val folderFileCount by produceState<Int?>(initialValue = null, folderRescanned) {
+                    value = container.localFolderLyrics.indexedFileCount()
+                }
+                val folderName = settings.localLyricsFolderUri
+                    ?.let {
+                        runCatching {
+                            DocumentFile.fromTreeUri(context, Uri.parse(it))?.name
+                        }.getOrNull()
+                    }
+                ActionRow(
+                    title = "Local lyrics folder",
+                    subtitle = folderName
+                        ?: "Not picked yet — tap to choose the folder with your .lrc files",
                     accent = accent,
-                    onCheckedChange = { store.setIdentifyTracks(it) },
+                    onClick = { folderPicker.launch(null) },
                 )
-                Help(
-                    "A Deezer track is asked about by the id Deezer publishes, before any source " +
-                        "is; everything else by title, artist and length, accepted only when all " +
-                        "three agree. The recording's ISRC comes back and is remembered, so each " +
-                        "track is asked about once and matched exactly from then on. Only the " +
-                        "names and the id leave the phone.",
+                ActionRow(
+                    title = if (folderRescanned) "Lyrics folder rescanned" else "Rescan local lyrics",
+                    subtitle = when (val count = folderFileCount) {
+                        null -> "Re-reads the folder for new .lrc files"
+                        else -> "$count .lrc files found"
+                    },
+                    accent = accent,
+                    onClick = {
+                        scope.launch {
+                            container.localFolderLyrics.refreshIndex()
+                            container.lyrics.retry()
+                            folderRescanned = true
+                        }
+                    },
                 )
-                Help(
-                    "Asking in parallel rather than in turn is why a track resolves in one round " +
-                        "trip instead of five. A source you have not given a token to is skipped " +
-                        "rather than queried, so leaving it enabled costs nothing. Results are " +
-                        "cached for 30 days, so each source is asked at most once per track.",
+                Hint(
+                    "Lyrics come only from .lrc files in this folder — nothing is " +
+                        "looked up online. A song's audio file is found first and the " +
+                        ".lrc with the same name is used, as in Poweramp; otherwise " +
+                        "the file name is matched against the song and artist.",
                 )
 
                 // The cache server only appears once the developer options are on. Everyone else
