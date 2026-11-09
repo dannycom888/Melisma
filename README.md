@@ -10,6 +10,13 @@ Changes in this fork:
 
 This fork is distributed under the same AGPL-3.0 license — free for personal use; if you share a modified version, share your changes under the same license.
 
+## Install / 安装
+
+1. Download the APK from [Releases](https://github.com/dannycom888/Melisma/releases) — 去 Release 页下载 APK。
+2. **Install it with KingInstaller** (not the system installer) — **必须用 KingInstaller 安装**，用系统安装器装的话不会在 Android Auto 里显示。
+3. Before connecting to the car, enable **Unknown sources** in Android Auto developer settings — 连车之前，先在 Android Auto 开发者设置里打开 Unknown sources。
+4. Open Melisma, grant notification access, then Settings → Where lyrics come from → Local lyrics folder → pick your Music folder → Rescan — 打开 App，允许通知权限，设置里选本地歌词文件夹（放歌的 Music 文件夹），点 Rescan。
+
 ---
 
 <div align="center">
