@@ -110,6 +110,25 @@ class LocalFolderLyricsProvider(
     /** Number of `.lrc` files in the current index, or null when no index has been built yet. */
     suspend fun indexedFileCount(): Int? = ensureIndex()?.lrc?.size
 
+    /**
+     * Waits for the file index to be ready before a lookup runs.
+     *
+     * The index lives only in memory and is built eagerly at app start,
+     * but a fresh process's first lookup can arrive while that build is
+     * still walking a big folder — and the lookup itself runs inside the
+     * repository's 12-second timeout, so it used to time out and report
+     * "no lyrics" for the first track, while later tracks found their
+     * lyrics once the build finished. Waiting here, outside the timeout,
+     * means the first track waits for the scan instead of failing on it.
+     * An in-progress build is awaited on the same mutex [ensureIndex]
+     * uses; a build that has not started yet is started here. Once the
+     * index is cached this is free, and an unreadable folder fails fast
+     * ([ensureIndex] returns null) rather than waiting forever.
+     */
+    override suspend fun awaitReady() {
+        ensureIndex()
+    }
+
     override suspend fun fetch(request: LyricsRequest): LyricsDocument? {
         noMatchReason = null
         val index = ensureIndex()

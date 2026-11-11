@@ -3,8 +3,12 @@ package com.melisma.app.lyrics.provider
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.melisma.app.lyrics.model.LineRole
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -12,6 +16,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.nio.charset.Charset
+import kotlin.system.measureTimeMillis
 
 /**
  * Ported from the local-only AALyrics build's `LocalLyricsMatcherTest`,
@@ -479,11 +484,99 @@ class LocalFolderMatcherTest {
         assertEquals(listOf("不要追问对与错"), leadTexts(document))
     }
 
+    /**
+     * The fresh-start race, reproduced: a lookup inside a short timeout
+     * while the index build is still walking a big folder times out and
+     * finds nothing — and the fix: awaiting the build first makes the
+     * same lookup return the lyrics.
+     */
+    @Test
+    fun `awaitReady waits for a slow in-progress index build and the fetch then returns lyrics`() = runBlocking {
+        val lrc = "[00:01.00]谢谢你的爱\n[00:02.00]让我一生一世记住\n"
+        val source = FakeSource(
+            files = mapOf(
+                "content://test/刘德华 - 谢谢你的爱.lrc" to lrc.toByteArray(Charsets.UTF_8),
+            ),
+            delayMs = 1_500L,
+        )
+        val provider = LocalFolderLyricsProvider(context = context)
+        provider.attach(source)
+
+        // The eager build at app start, still walking the folder.
+        val building = async { provider.refreshIndex() }
+        // Let it take the build lock before the first lookup arrives.
+        delay(100L)
+
+        // The old behaviour: a lookup inside a short timeout while the
+        // build is in progress times out and finds nothing.
+        val timedOut = withTimeoutOrNull(300L) {
+            provider.fetch(request("谢谢你的爱", "刘德华", 300_000L))
+        }
+        assertNull(timedOut)
+
+        // The fix: the lookup waits for the build instead of timing out.
+        val waitedMs = measureTimeMillis { provider.awaitReady() }
+        assertTrue("awaitReady should have waited for the build, waited ${waitedMs}ms", waitedMs >= 800L)
+        val document = withTimeoutOrNull(500L) {
+            provider.fetch(request("谢谢你的爱", "刘德华", 300_000L))
+        }
+        assertNotNull(document)
+        assertEquals(listOf("谢谢你的爱", "让我一生一世记住"), leadTexts(document))
+
+        // The background build must have finished; its result is Ready(1).
+        assertEquals(
+            LocalFolderLyricsProvider.IndexResult.Ready(1),
+            building.await(),
+        )
+    }
+
+    /** Once the index is built, a lookup answers well inside a short timeout. */
+    @Test
+    fun `fetch after the index is ready is fast`() = runBlocking {
+        val lrc = "[00:01.00]谢谢你的爱\n[00:02.00]让我一生一世记住\n"
+        val source = FakeSource(
+            files = mapOf(
+                "content://test/刘德华 - 谢谢你的爱.lrc" to lrc.toByteArray(Charsets.UTF_8),
+            ),
+            delayMs = 1_500L,
+        )
+        val provider = LocalFolderLyricsProvider(context = context)
+        provider.attach(source)
+        provider.refreshIndex()
+
+        val elapsedMs = measureTimeMillis {
+            val document = withTimeoutOrNull(500L) {
+                provider.fetch(request("谢谢你的爱", "刘德华", 300_000L))
+            }
+            assertNotNull(document)
+            assertEquals(listOf("谢谢你的爱", "让我一生一世记住"), leadTexts(document))
+        }
+        assertTrue("fetch with a ready index should be fast, took ${elapsedMs}ms", elapsedMs < 500L)
+    }
+
+    /** Waiting on a folder that cannot be read fails fast, never forever. */
+    @Test
+    fun `awaitReady returns at once when the folder cannot be read`() = runBlocking {
+        val provider = LocalFolderLyricsProvider(context = context)
+        provider.attach(ThrowingSource())
+
+        val waitedMs = measureTimeMillis { provider.awaitReady() }
+
+        assertTrue("awaitReady on an unreadable folder should fail fast, took ${waitedMs}ms", waitedMs < 5_000L)
+        assertEquals(
+            LocalFolderLyricsProvider.IndexResult.Unreadable,
+            provider.indexStatus(),
+        )
+    }
+
     private class FakeSource(
         private val files: Map<String, ByteArray>,
         private val audioFiles: List<String> = emptyList(),
+        /** Simulates a slow folder scan (a big folder walked over SAF). */
+        private val delayMs: Long = 0L,
     ) : LocalFolderSource {
         override suspend fun listLrcFiles(): List<LocalLrcFile> {
+            if (delayMs > 0) delay(delayMs)
             return files.keys.map { uri ->
                 LocalLrcFile(uriString = uri, displayName = uri.substringAfterLast('/'))
             }

@@ -151,6 +151,22 @@ interface LyricsProvider {
 
     /** Returns null when this provider simply has nothing for the track. */
     suspend fun fetch(request: LyricsRequest): LyricsDocument?
+
+    /**
+     * Waits until this provider is ready to answer a lookup, outside any
+     * per-lookup timeout.
+     *
+     * The default is a no-op: most providers answer from a network or a
+     * database and have nothing to build. A provider whose index is built
+     * in the background — the local folder, whose file index is built
+     * eagerly at app start — overrides it to wait for the in-progress
+     * build instead of letting the first lookup after a fresh start run
+     * into the repository's 12-second timeout and report "no lyrics" for
+     * a track it does have. Once the provider is ready this returns
+     * immediately; a provider that cannot become ready (an unreadable
+     * folder) fails fast rather than waiting forever.
+     */
+    suspend fun awaitReady() {}
 }
 
 /**

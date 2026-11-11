@@ -445,6 +445,10 @@ class LyricsRepository(
 
                 else -> {
                     val started = System.currentTimeMillis()
+                    // A provider still building its index (the local folder on
+                    // a fresh start) is awaited outside the timeout, so the
+                    // test reports what the source has rather than a timeout.
+                    provider.awaitReady()
                     val outcome = try {
                         val finished = withTimeoutOrNull(PROVIDER_TIMEOUT_MS) {
                             Finished(provider.fetch(request))
@@ -604,6 +608,10 @@ class LyricsRepository(
         }
         if (!isOnline()) return null
         var failed = false
+        // Wait for a provider still building its index (the local folder on
+        // a fresh start) before the lookup timeout starts, so the first
+        // track does not time out on the scan and report "no lyrics".
+        provider.awaitReady()
         val finished = withTimeoutOrNull(PROVIDER_TIMEOUT_MS) {
             Finished(
                 runCatching { provider.fetch(request) }
@@ -775,6 +783,9 @@ class LyricsRepository(
                 subset.map { provider ->
                     async {
                         var failed = false
+                        // As in query(): wait out an in-progress index build
+                        // before the timeout starts.
+                        provider.awaitReady()
                         val finished = withTimeoutOrNull(PROVIDER_TIMEOUT_MS) {
                             Finished(
                                 runCatching { provider.fetch(request) }
@@ -884,6 +895,12 @@ class LyricsRepository(
                 enabled.map { provider ->
                     async {
                         var failed = false
+                        // A provider still building its index (the local folder
+                        // on a fresh start) is awaited outside the timeout: the
+                        // first track after a fresh start used to time out on
+                        // the scan and report "no lyrics", while later tracks
+                        // found their lyrics once the build finished.
+                        provider.awaitReady()
                         // Wrapped so that "the provider finished and had nothing" can be
                         // told apart from "the provider ran out of time" — withTimeoutOrNull
                         // returns null for both, and only one of them is a real answer.

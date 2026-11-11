@@ -7,6 +7,7 @@ Changes in this fork:
 - **Local lyrics only** — lyrics come only from `.lrc` files in a local folder you pick. No online lyrics lookup, no network requests for lyrics.
 - **Chinese UI** — full Simplified Chinese translation, with an in-app language switch (follow system / 中文（简体） / English).
 - The local-lyrics index is built once at startup, and Rescan reports how many files were found.
+- **First song waits for the index** (v0.1.0-local.3) — after a fresh start, the first lookup waits for the local-lyrics index to finish building instead of timing out and showing "no lyrics" for a track it has. 刚打开时第一首歌会等歌词索引扫好再查，不会再显示“这首歌没有歌词”。
 
 This fork is distributed under the same AGPL-3.0 license — free for personal use; if you share a modified version, share your changes under the same license.
 
