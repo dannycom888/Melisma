@@ -156,7 +156,18 @@ class LyricsRepository(
                 Base.NotFound -> LyricsState.NotFound
                 Base.Offline -> LyricsState.Offline
                 is Base.Failed -> LyricsState.Failed(base.message)
-                is Base.Ready -> present(base, settings, isTranslating)
+                // Deriving the display form (romanization, translation)
+                // must never kill this flow: a throw here used to fail
+                // the eager stateIn collection and take the process down
+                // with it. The words stay as fetched; the failure is shown.
+                is Base.Ready -> try {
+                    present(base, settings, isTranslating)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    Log.w(TAG, "present failed: ${e.message}")
+                    LyricsState.Failed(e.message ?: context.getString(R.string.repo_lookup_failed))
+                }
             }
         }
             // mapLatest cancels a derivation when its inputs change, but a derivation that never
@@ -448,7 +459,9 @@ class LyricsRepository(
                     // A provider still building its index (the local folder on
                     // a fresh start) is awaited outside the timeout, so the
                     // test reports what the source has rather than a timeout.
-                    provider.awaitReady()
+                    // A wait that fails is "not ready", never a throw up
+                    // through the diagnostic: the outcome below says so.
+                    runCatching { provider.awaitReady() }
                     val outcome = try {
                         val finished = withTimeoutOrNull(PROVIDER_TIMEOUT_MS) {
                             Finished(provider.fetch(request))
@@ -487,11 +500,32 @@ class LyricsRepository(
     // ---- fetching -----------------------------------------------------------
 
     /**
+     * The lookup, with a floor under it.
+     *
+     * A lookup must never take the app down: whatever broke — a
+     * provider, the cache, the ranking — the screen gets "failed" and
+     * the next track gets a fresh attempt. Before this, a throw out of
+     * here escaped the `setTrack` launch uncaught and killed the
+     * process, which on the car is the "unexpected error" dialog with
+     * no screen behind it.
+     */
+    private suspend fun fetchBase(request: LyricsRequest, freshen: Boolean = false) {
+        try {
+            fetchBaseInner(request, freshen)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Log.w(TAG, "lookup failed: ${e.message}")
+            base.value = Base.Failed(e.message ?: context.getString(R.string.repo_lookup_failed))
+        }
+    }
+
+    /**
      * @param freshen skip the stored answer and ask the sources again, keeping whatever comes back.
      *   For when the question has improved rather than the answer having aged: an ISRC learned since
      *   last time makes an exact lookup possible where only a guess was before.
      */
-    private suspend fun fetchBase(request: LyricsRequest, freshen: Boolean = false) {
+    private suspend fun fetchBaseInner(request: LyricsRequest, freshen: Boolean = false) {
         val key = request.cacheIdentity()
 
         // The source the listener chose for this track comes before the ranking — but not before
@@ -532,10 +566,13 @@ class LyricsRepository(
             return
         }
 
-        if (!isOnline()) {
-            base.value = Base.Offline
-            return
-        }
+        // No offline gate here, deliberately: every provider in this
+        // build reads files on the phone, so "no network" is not a
+        // reason to skip the lookup — on the car the phone is often on
+        // a Wi-Fi with no internet, and the old gate left the screen
+        // saying "offline" for lyrics that were already on the device.
+        // (Upstream this gate kept the network sources from being
+        // asked; this fork constructs none.)
 
         when (val answer = query(request, alreadyAsked = missing)) {
             is Query.Broke -> base.value = Base.Failed(answer.message)
@@ -606,12 +643,15 @@ class LyricsRepository(
                 return Chosen.SHOWN
             }
         }
-        if (!isOnline()) return null
+        // No offline gate: a chosen source in this build is a local
+        // one, and "no network" must not skip it — see fetchBase.
         var failed = false
         // Wait for a provider still building its index (the local folder on
         // a fresh start) before the lookup timeout starts, so the first
         // track does not time out on the scan and report "no lyrics".
-        provider.awaitReady()
+        // A wait that fails is "not ready", never a throw out of the
+        // lookup: the timed fetch below still runs and answers what it can.
+        runCatching { provider.awaitReady() }
         val finished = withTimeoutOrNull(PROVIDER_TIMEOUT_MS) {
             Finished(
                 runCatching { provider.fetch(request) }

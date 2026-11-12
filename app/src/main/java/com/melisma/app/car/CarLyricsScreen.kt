@@ -1,5 +1,6 @@
 package com.melisma.app.car
 
+import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
@@ -73,9 +74,12 @@ class CarLyricsScreen(
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 var lastRedrawAt = 0L
                 while (true) {
-                    val next = compose()
+                    // A compose that throws must not kill this loop — and
+                    // with it the screen: skip the redraw and try again
+                    // on the next tick.
+                    val next = runCatching { compose() }.getOrNull()
                     val now = System.currentTimeMillis()
-                    if (next != shown && now - lastRedrawAt >= MIN_REDRAW_GAP_MS) {
+                    if (next != null && next != shown && now - lastRedrawAt >= MIN_REDRAW_GAP_MS) {
                         lastRedrawAt = now
                         invalidate()
                     }
@@ -89,9 +93,21 @@ class CarLyricsScreen(
         // Composed fresh rather than read from the field the tick loop wrote: the host asks for a
         // template at moments of its own choosing, and answering with whatever was true a second ago
         // would put a stale line on the screen.
-        val content = compose()
-        shown = content
-        return content.toTemplate()
+        //
+        // Never throws: a template call that throws is the host's
+        // "unexpected error" dialog, so on any failure the host gets a
+        // message instead of an exception.
+        return runCatching {
+            val content = compose()
+            shown = content
+            content.toTemplate()
+        }.getOrElse { failure ->
+            Log.w(TAG, "template failed: ${failure.message}")
+            MessageTemplate.Builder(carContext.getString(R.string.car_something_went_wrong))
+                .setTitle(carContext.getString(R.string.car_failed))
+                .setHeaderAction(Action.BACK)
+                .build()
+        }
     }
 
     private fun compose(): Content {
@@ -267,6 +283,8 @@ class CarLyricsScreen(
             .build()
 
     private companion object {
+
+        const val TAG = "MelismaCarScreen"
 
         /**
          * How often the playhead is re-examined. Half a second is imperceptible against a lyric line

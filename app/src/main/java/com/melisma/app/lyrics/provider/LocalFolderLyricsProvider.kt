@@ -8,6 +8,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import com.melisma.app.R
 
 /**
@@ -39,6 +40,16 @@ class LocalFolderLyricsProvider(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     /** True once the user has picked a folder; drives [isConfigured]. */
     private val hasFolder: () -> Boolean = { true },
+    /**
+     * Longest [awaitReady] waits for an in-progress index build.
+     *
+     * A real scan of a big folder takes tens of seconds, so the bound is
+     * generous — but a build that never finishes (a stuck SAF walk) must
+     * not hold the lookup up forever. When the bound is hit the lookup
+     * proceeds anyway and the next track finds the lyrics once the build
+     * lands, which is the old behaviour for that one track, not a hang.
+     */
+    private val awaitReadyTimeoutMs: Long = AWAIT_READY_TIMEOUT_MS,
 ) : LyricsProvider {
 
     override val id = PROVIDER_ID
@@ -124,9 +135,21 @@ class LocalFolderLyricsProvider(
      * uses; a build that has not started yet is started here. Once the
      * index is cached this is free, and an unreadable folder fails fast
      * ([ensureIndex] returns null) rather than waiting forever.
+     *
+     * Never throws and never waits past [awaitReadyTimeoutMs]: a wait
+     * that fails is "not ready yet", and the timed lookup below still
+     * runs and answers what it can. A lookup that throws here used to
+     * take the whole app down with it — on the car, that is the
+     * "unexpected error" dialog — so this is a floor, not a convenience.
      */
     override suspend fun awaitReady() {
-        ensureIndex()
+        try {
+            withTimeoutOrNull(awaitReadyTimeoutMs) { ensureIndex() }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            // Not ready; the lookup below proceeds without the index.
+        }
     }
 
     override suspend fun fetch(request: LyricsRequest): LyricsDocument? {
@@ -191,48 +214,70 @@ class LocalFolderLyricsProvider(
     private suspend fun ensureIndex(): LocalIndex? {
         cachedIndex?.let { return it }
         val folderSource = source ?: return null
-        return indexMutex.withLock {
-            cachedIndex?.let { return it }
-            // One walk, not two: the folder is traversed once for `.lrc` and
-            // audio files together.
-            //
-            // NonCancellable, because a lookup that times out must not discard
-            // the build: the provider runs inside a 12-second timeout, and a
-            // big folder outruns it on the first pass — but the index is the
-            // whole point of the *next* lookup too, so the walk runs to
-            // completion even when this fetch is cancelled.
-            //
-            // A revoked SAF grant (SecurityException) or a vanished folder
-            // must not crash the lookup or the rescan either: the index stays
-            // empty, the failure is remembered for the UI to report, and the
-            // next lookup retries the walk rather than serving a stale answer.
-            val (lrcFiles, audioFiles) = try {
-                withContext(NonCancellable + ioDispatcher) {
-                    folderSource.listAll()
+        // Total: a failed index build is "no lyrics", never a crash.
+        // The walk itself is caught below, but the mapping over the
+        // files it found used to sit outside that try — and so did any
+        // Error (a stack overflow from a deep folder walk, for one) —
+        // and a throw here escapes through awaitReady() and the startup
+        // refresh alike. On a fresh car connection the process is new
+        // and the build runs at once, so this is where the car used to
+        // die before showing anything.
+        return try {
+            indexMutex.withLock {
+                cachedIndex?.let { return it }
+                // One walk, not two: the folder is traversed once for `.lrc` and
+                // audio files together.
+                //
+                // NonCancellable, because a lookup that times out must not discard
+                // the build: the provider runs inside a 12-second timeout, and a
+                // big folder outruns it on the first pass — but the index is the
+                // whole point of the *next* lookup too, so the walk runs to
+                // completion even when this fetch is cancelled.
+                //
+                // A revoked SAF grant (SecurityException) or a vanished folder
+                // must not crash the lookup or the rescan either: the index stays
+                // empty, the failure is remembered for the UI to report, and the
+                // next lookup retries the walk rather than serving a stale answer.
+                val (lrcFiles, audioFiles) = try {
+                    withContext(NonCancellable + ioDispatcher) {
+                        folderSource.listAll()
+                    }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    lastIndexError = true
+                    return@withLock null
                 }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                lastIndexError = true
-                return@withLock null
+                lastIndexError = false
+                val index = try {
+                    LocalIndex(
+                        lrc = lrcFiles.map { file ->
+                            LocalFolderMatcher.IndexedLrcFile(
+                                file = file,
+                                keys = LocalFolderMatcher.fileKeys(file.displayName),
+                            )
+                        },
+                        audio = audioFiles.map { file ->
+                            LocalFolderMatcher.IndexedAudioFile(
+                                file = file,
+                                normalizedStem = LocalFolderMatcher.fileStem(file.displayName),
+                            )
+                        },
+                    )
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    lastIndexError = true
+                    return@withLock null
+                }
+                cachedIndex = index
+                index
             }
-            lastIndexError = false
-            val index = LocalIndex(
-                lrc = lrcFiles.map { file ->
-                    LocalFolderMatcher.IndexedLrcFile(
-                        file = file,
-                        keys = LocalFolderMatcher.fileKeys(file.displayName),
-                    )
-                },
-                audio = audioFiles.map { file ->
-                    LocalFolderMatcher.IndexedAudioFile(
-                        file = file,
-                        normalizedStem = LocalFolderMatcher.fileStem(file.displayName),
-                    )
-                },
-            )
-            cachedIndex = index
-            index
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            lastIndexError = true
+            null
         }
     }
 
@@ -254,6 +299,14 @@ class LocalFolderLyricsProvider(
 
         /** At most this many matching files are read and parsed per lookup. */
         private const val MAX_FILES_TO_PARSE = 8
+
+        /**
+         * Longest [awaitReady] waits for an in-progress index build: a
+         * real scan of a big folder takes tens of seconds, so the bound
+         * is generous — it only ever bites on a build that is stuck
+         * rather than slow. See [awaitReady].
+         */
+        const val AWAIT_READY_TIMEOUT_MS = 60_000L
 
         private val TIME_TAG = Regex("""\[\d{1,3}:\d{1,2}""")
     }

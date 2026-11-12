@@ -92,13 +92,20 @@ fun CarLyricsContent(container: AppContainer, insets: PaddingValues) {
     // access, which showed as "nothing playing" — true, and permanently so, with no hint why.
     //
     // Only the *kind* of answer is used; which line is being sung is the renderer's own business.
-    val glance = CarGlance.of(
-        state = lyricsState,
-        hasTrack = snapshot.hasTrack,
-        permissionGranted = permitted,
-        positionMs = snapshot.playback.currentMs() + settings.syncOffsetMs,
-        settings = settings,
-    )
+    //
+    // Guarded: a throw during composition takes the whole app down,
+    // and on the car that is the "unexpected error" dialog — so a
+    // glance that cannot be computed shows "something went wrong"
+    // instead of crashing.
+    val glance = runCatching {
+        CarGlance.of(
+            state = lyricsState,
+            hasTrack = snapshot.hasTrack,
+            permissionGranted = permitted,
+            positionMs = snapshot.playback.currentMs() + settings.syncOffsetMs,
+            settings = settings,
+        )
+    }.getOrElse { CarGlance.Failed("glance failed") }
     val document = (lyricsState as? LyricsState.Loaded)?.document?.takeIf { glance is CarGlance.Now }
 
     // Blurred Canvas only. Full is a picture to watch, which a driver must not be given; blurred it is

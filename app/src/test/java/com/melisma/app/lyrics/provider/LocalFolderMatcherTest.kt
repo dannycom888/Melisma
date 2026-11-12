@@ -569,6 +569,68 @@ class LocalFolderMatcherTest {
         )
     }
 
+    /**
+     * A build that never finishes must not hold the lookup up forever:
+     * awaitReady gives up after its bound and the lookup proceeds — and
+     * the build still lands, so the next track finds its lyrics.
+     */
+    @Test
+    fun `awaitReady gives up after its bound when a build never finishes`() = runBlocking {
+        val lrc = "[00:01.00]谢谢你的爱\n[00:02.00]让我一生一世记住\n"
+        val source = FakeSource(
+            files = mapOf(
+                "content://test/刘德华 - 谢谢你的爱.lrc" to lrc.toByteArray(Charsets.UTF_8),
+            ),
+            delayMs = 5_000L,
+        )
+        val provider = LocalFolderLyricsProvider(
+            context = context,
+            awaitReadyTimeoutMs = 300L,
+        )
+        provider.attach(source)
+
+        // The eager build at app start, still walking the folder.
+        val building = async { provider.refreshIndex() }
+        // Let it take the build lock before the first lookup arrives.
+        delay(100L)
+
+        // The wait gives up after its bound instead of waiting out the
+        // whole 5-second scan.
+        val waitedMs = measureTimeMillis { provider.awaitReady() }
+        assertTrue("awaitReady should give up after its bound, waited ${waitedMs}ms", waitedMs < 3_000L)
+
+        // The build still lands on its own, and the next lookup then
+        // finds the lyrics.
+        assertEquals(
+            LocalFolderLyricsProvider.IndexResult.Ready(1),
+            building.await(),
+        )
+        val document = withTimeoutOrNull(500L) {
+            provider.fetch(request("谢谢你的爱", "刘德华", 300_000L))
+        }
+        assertNotNull(document)
+        assertEquals(listOf("谢谢你的爱", "让我一生一世记住"), leadTexts(document))
+    }
+
+    /**
+     * A build that fails with an Error — not just an Exception — still
+     * degrades to "unreadable" instead of taking the caller down: the
+     * index build is "no lyrics", never a crash.
+     */
+    @Test
+    fun `awaitReady never throws when the index build fails with an Error`() = runBlocking {
+        val provider = LocalFolderLyricsProvider(context = context)
+        provider.attach(ErrorSource())
+
+        val waitedMs = measureTimeMillis { provider.awaitReady() }
+
+        assertTrue("awaitReady on a failing build should return, took ${waitedMs}ms", waitedMs < 5_000L)
+        assertEquals(
+            LocalFolderLyricsProvider.IndexResult.Unreadable,
+            provider.indexStatus(),
+        )
+    }
+
     private class FakeSource(
         private val files: Map<String, ByteArray>,
         private val audioFiles: List<String> = emptyList(),
@@ -595,6 +657,15 @@ class LocalFolderMatcherTest {
     private class ThrowingSource : LocalFolderSource {
         override suspend fun listLrcFiles(): List<LocalLrcFile> {
             throw SecurityException("persisted URI permission revoked")
+        }
+
+        override suspend fun readBytes(file: LocalLrcFile): ByteArray? = null
+    }
+
+    /** A folder whose read fails with an Error rather than an Exception. */
+    private class ErrorSource : LocalFolderSource {
+        override suspend fun listLrcFiles(): List<LocalLrcFile> {
+            throw StackOverflowError("simulated deep folder walk")
         }
 
         override suspend fun readBytes(file: LocalLrcFile): ByteArray? = null

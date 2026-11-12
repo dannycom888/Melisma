@@ -8,6 +8,7 @@ Changes in this fork:
 - **Chinese UI** — full Simplified Chinese translation, with an in-app language switch (follow system / 中文（简体） / English).
 - The local-lyrics index is built once at startup, and Rescan reports how many files were found.
 - **First song waits for the index** (v0.1.0-local.3) — after a fresh start, the first lookup waits for the local-lyrics index to finish building instead of timing out and showing "no lyrics" for a track it has. 刚打开时第一首歌会等歌词索引扫好再查，不会再显示“这首歌没有歌词”。
+- **Car crash fixed, and local lyrics work offline** (v0.1.0-local.4) — the car no longer shows the "unexpected error" dialog when the lyrics index is still building: the wait for the index is now bounded and can never take the app down, and a failed index degrades to "no lyrics" instead of a crash. Local lyrics are also asked even with no network, so a car Wi-Fi without internet no longer leaves the screen blank. 车上不再出现“意外错误”：等索引建好有了上限、失败也不会让 App 崩溃；没有网络时本地歌词照样查，车载 Wi-Fi 没网也不再空白。
 
 This fork is distributed under the same AGPL-3.0 license — free for personal use; if you share a modified version, share your changes under the same license.
 
